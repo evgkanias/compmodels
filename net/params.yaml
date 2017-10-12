@@ -1,0 +1,5 @@
+gain: -20.
+neurons:
+  PN: 360
+  KC: 20000
+  EN: 1

@@ -38,27 +38,33 @@ def load_routes(routes_filename=ROUTES_FILENAME):
 if __name__ == "__main__":
     import pygame
 
+    H = 800
+    W = 1500
+    mode = "panorama"  # "top"
+
     pygame.init()
-    screen = pygame.display.set_mode((WIDTH, 2*HEIGHT))
+    screen = pygame.display.set_mode((W, H))
     done = False
 
     world = load_world()
     routes = load_routes()
     for route in routes:
         world.add_route(route)
-        break
 
-    for xyz, phi in zip(world.routes[-1].xyz, world.routes[-1].phi):
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                done = True
+    if mode == "top":
+        img, draw = world.draw_top_view()
+        img.show()
+    elif mode == "panorama":
+        for xyz, phi in zip(world.routes[-1].xyz, world.routes[-1].phi):
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    done = True
 
-        img, draw = world.draw_panoramic_view(xyz[0], xyz[1], xyz[2], phi)
-        # img.show()
-        screen.blit(pygame.image.fromstring(img.tobytes("raw", "RGB"), img.size, "RGB"), (0, 0))
-        pygame.display.flip()
+            img, draw = world.draw_panoramic_view(xyz[0], xyz[1], xyz[2], phi)
+            # img.transform((W, H), Image.EXTENT, )
+            img = img.resize((W, H), Image.ANTIALIAS)
+            screen.blit(pygame.image.fromstring(img.tobytes("raw", "RGB"), img.size, "RGB"), (0, 0))
+            pygame.display.flip()
 
-        if done:
-            break
-
-    # img, draw = world.draw_top_view()
+            if done:
+                break

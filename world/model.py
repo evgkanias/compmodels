@@ -5,13 +5,13 @@ from numbers import Number
 from PIL import ImageDraw, Image
 from colorsys import hsv_to_rgb
 from utils import vec2sph
-
+from ephem import Observer
 from sky import get_seville_observer, ChromaticitySkyModel
 from compoundeye import CompoundEye
 
-WIDTH = 1500
-HEIGHT = 400
-LENGTH = 1500
+WIDTH = 36
+HEIGHT = 5
+LENGTH = 36
 
 GRASS_COLOUR = (0, 255, 0)
 GROUND_COLOUR = (229, 183, 90)
@@ -21,25 +21,49 @@ SKY_COLOUR = (13, 135, 201)
 class World(object):
 
     def __init__(self, observer=None, polygons=None, width=WIDTH, length=LENGTH, height=HEIGHT):
+        """
+        Creates a world.
+
+        :param observer: a reference to an observer
+        :type observer: Observer
+        :param polygons: polygons of the objects in the world
+        :type polygons: PolygonList
+        :param width: the width of the world
+        :type width: int
+        :param length: the length of the world
+        :type length: int
+        :param height: the height of the world
+        :type height: int
+        """
         # normalise world
         xmax = np.array([polygons.x.max(), polygons.y.max(), polygons.z.max()]).max()
         polygons.normalise(*((xmax,) * 3))
 
-        polygons = polygons * [.9 * width, .9 * length, .9 * height]
+        # rescale the polygons and put the in the centre of the world
+        polygons = polygons * [width, length, height]
         polygons = polygons + [width / 2, length / 2, height / 2]
 
+        # default observer is in Seville (where the data come from)
         if observer is None:
             observer = get_seville_observer()
         observer.date = datetime.now()
+
+        # create and generate a sky instance
         self.sky = ChromaticitySkyModel(observer=observer, nside=1)
         self.sky.generate()
+
+        # create ommatidia positions with respect to the resolution
+        # (this is for the sky drawing on the panoramic images)
         thetas = np.linspace(-np.pi, np.pi, width, endpoint=False)
         phis = np.linspace(np.pi/2, 0, height, endpoint=False)
         thetas, phis = np.meshgrid(phis, thetas)
         ommatidia = np.array([thetas.flatten(), phis.flatten()]).T
+
+        # create a compound eye model for the sky pixels
         self.eye = CompoundEye(ommatidia)
         self.eye.set_sky(self.sky)
 
+        # store the polygons and initialise the parameters
         self.polygons = polygons
         self.routes = []
         self.width = width
@@ -48,20 +72,35 @@ class World(object):
         self.__normalise_factor = xmax
 
     def add_route(self, route):
+        """
+        Adds an ant-route in the world
+
+        :param route: the new route
+        :type route: Route
+        :return: None
+        """
         route.normalise(*((self.__normalise_factor,) * 3))
-        route = route * [.9 * self.width, .9 * self.length, .9 * self.height]
+        route = route * [self.width, self.length, self.height]
         route = route + [self.width / 2, self.length / 2, self.height / 2]
         self.routes.append(route)
 
     def draw_top_view(self):
+        """
+        Draws a top view of the world and all the added paths in it.
+
+        :return: an image with the top view
+        """
+        # create new image and drawer
         image = Image.new("RGB", (self.width, self.length), GROUND_COLOUR)
         draw = ImageDraw.Draw(image)
 
+        # draw the polygons
         for p in self.polygons:
             draw.polygon(p.xy, fill=p.c_int32)
 
-        nants = np.float32(np.array([r.nant for r in self.routes]).max())
-        nroutes = np.float32(np.array([r.nroute for r in self.routes]).max())
+        # draw the routes
+        nants = np.float32(np.array([r.nant for r in self.routes]).max())  # the ants' ID
+        nroutes = np.float32(np.array([r.nroute for r in self.routes]).max())  # the routes' ID
         for route in self.routes:
             h = np.float32(route.nant) / nants
             s = route.nroute / nroutes
@@ -72,6 +111,19 @@ class World(object):
         return image, draw
 
     def draw_panoramic_view(self, x=WIDTH/2, y=LENGTH/2, z=.06*HEIGHT, r=0):
+        """
+        Draws a panoramic view of the world
+
+        :param x: The x coordinate of the agent in the world
+        :type x: float
+        :param y: The y coordinate of the agent in the world
+        :type y: float
+        :param z: The z coordinate of the agent in the world
+        :type z: float
+        :param r: The orientation of the agent in the world
+        :type r: float
+        :return: an image showing the 360 degrees view of the agent
+        """
         image = Image.new("RGB", (self.width, self.height * 2), GROUND_COLOUR)
         self.sky.obs.date = datetime.now()
         self.sky.generate()
