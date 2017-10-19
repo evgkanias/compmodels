@@ -35,33 +35,46 @@ def load_routes(routes_filename=ROUTES_FILENAME):
     return routes
 
 
+def load_route(name):
+    return Route.from_file(__data__ + "routes/" + name + ".npz")
+
+
+def save_route(rt, name):
+    rt.save(__data__ + "routes/" + name + ".npz")
+
+
 if __name__ == "__main__":
     import pygame
 
-    H = 800
-    W = 1500
-    mode = "panorama"  # "top"
+    H = 500
+    W = 1000
+    mode = "panorama"
+    # mode = "top"
 
-    pygame.init()
-    screen = pygame.display.set_mode((W, H))
     done = False
 
     world = load_world()
+    # world.uniform_sky = True
     routes = load_routes()
     for route in routes:
+        route.condition = Stepper(1)
         world.add_route(route)
+        break
 
     if mode == "top":
-        img, draw = world.draw_top_view()
+        img, draw = world.draw_top_view(width=W, length=W)
         img.show()
     elif mode == "panorama":
-        for xyz, phi in zip(world.routes[-1].xyz, world.routes[-1].phi):
+        pygame.init()
+        screen = pygame.display.set_mode((W, H))
+        for x, y, z, phi in world.routes[-1]:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     done = True
 
-            img, draw = world.draw_panoramic_view(xyz[0], xyz[1], xyz[2], phi)
-            # img.transform((W, H), Image.EXTENT, )
+            # transform position to meters
+            x, y, z = (np.array([x, y, z]) + .5) * world.ratio2meters
+            img, draw = world.draw_panoramic_view(x, y, z, phi, W, W, H)
             img = img.resize((W, H), Image.ANTIALIAS)
             screen.blit(pygame.image.fromstring(img.tobytes("raw", "RGB"), img.size, "RGB"), (0, 0))
             pygame.display.flip()

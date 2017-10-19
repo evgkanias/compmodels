@@ -8,9 +8,10 @@ from utils import vec2sph
 from ephem import Observer
 from sky import get_seville_observer, ChromaticitySkyModel
 from compoundeye import CompoundEye
+from conditions import *
 
 WIDTH = 36
-HEIGHT = 5
+HEIGHT = 10
 LENGTH = 36
 
 GRASS_COLOUR = (0, 255, 0)
@@ -20,7 +21,7 @@ SKY_COLOUR = (13, 135, 201)
 
 class World(object):
 
-    def __init__(self, observer=None, polygons=None, width=WIDTH, length=LENGTH, height=HEIGHT):
+    def __init__(self, observer=None, polygons=None, width=WIDTH, length=LENGTH, height=HEIGHT, uniform_sky=False):
         """
         Creates a world.
 
@@ -34,14 +35,15 @@ class World(object):
         :type length: int
         :param height: the height of the world
         :type height: int
+        :param uniform_sky: flag that indicates if there is a uniform sky or not
+        :type uniform_sky: bool
         """
         # normalise world
         xmax = np.array([polygons.x.max(), polygons.y.max(), polygons.z.max()]).max()
         polygons.normalise(*((xmax,) * 3))
 
-        # rescale the polygons and put the in the centre of the world
-        polygons = polygons * [width, length, height]
-        polygons = polygons + [width / 2, length / 2, height / 2]
+        # polygons = polygons * [width, length, height]
+        # polygons = polygons + [width / 2, length / 2, height / 2]
 
         # default observer is in Seville (where the data come from)
         if observer is None:
@@ -70,6 +72,11 @@ class World(object):
         self.length = length
         self.height = height
         self.__normalise_factor = xmax
+        self.uniform_sky = uniform_sky
+
+    @property
+    def ratio2meters(self):
+        return self.__normalise_factor
 
     def add_route(self, route):
         """
@@ -80,37 +87,57 @@ class World(object):
         :return: None
         """
         route.normalise(*((self.__normalise_factor,) * 3))
-        route = route * [self.width, self.length, self.height]
-        route = route + [self.width / 2, self.length / 2, self.height / 2]
         self.routes.append(route)
 
-    def draw_top_view(self):
+    def draw_top_view(self, width=None, length=None, height=None):
         """
         Draws a top view of the world and all the added paths in it.
 
-        :return: an image with the top view
+        :param width: the width of the world
+        :type width: int
+        :param length: the length of the world
+        :type length: int
+        :param height: the height of the world
+        :type height: int
+        :return: an image of the top view
         """
+
+        # set the default values to the dimensions of the world
+        if width is None:
+            width = self.width
+        if length is None:
+            length = self.length
+        if height is None:
+            height = self.height
+
         # create new image and drawer
-        image = Image.new("RGB", (self.width, self.length), GROUND_COLOUR)
+        image = Image.new("RGB", (width, length), GROUND_COLOUR)
         draw = ImageDraw.Draw(image)
 
+        # rescale the polygons and put them in the centre of the world
+        polygons = self.polygons * [width, length, height]
+        polygons = polygons + [width / 2, length / 2, height / 2]
+
         # draw the polygons
-        for p in self.polygons:
+        for p in polygons:
             draw.polygon(p.xy, fill=p.c_int32)
 
         # draw the routes
-        nants = np.float32(np.array([r.nant for r in self.routes]).max())  # the ants' ID
-        nroutes = np.float32(np.array([r.nroute for r in self.routes]).max())  # the routes' ID
+        nants = int(np.array([r.nant for r in self.routes]).max())      # the ants' ID
+        nroutes = int(np.array([r.nroute for r in self.routes]).max())  # the routes' ID
         for route in self.routes:
-            h = np.float32(route.nant) / nants
-            s = route.nroute / nroutes
+            # transform the routes similarly to the polygons
+            rt = route * [width, length, height]
+            rt = rt + [width / 2, length / 2, height / 2]
+            h = np.linspace(0, 1, nants)[rt.nant-1]
+            s = np.linspace(0, 1, nroutes)[rt.nroute-1]
             v = .5
             r, g, b = hsv_to_rgb(h, s, v)
-            draw.line(route.xy, fill=(int(r * 255), int(g * 255), int(b * 255)))
+            draw.line(rt.xy, fill=(int(r * 255), int(g * 255), int(b * 255)))
 
         return image, draw
 
-    def draw_panoramic_view(self, x=WIDTH/2, y=LENGTH/2, z=.06*HEIGHT, r=0):
+    def draw_panoramic_view(self, x=None, y=None, z=None, r=0, width=None, length=None, height=None, update_sky=True):
         """
         Draws a panoramic view of the world
 
@@ -122,44 +149,85 @@ class World(object):
         :type z: float
         :param r: The orientation of the agent in the world
         :type r: float
+        :param width: the width of the world
+        :type width: int
+        :param length: the length of the world
+        :type length: int
+        :param height: the height of the world
+        :type height: int
+        :param update_sky: flag that specifies if we want to update the sky
+        :type update_sky: bool
         :return: an image showing the 360 degrees view of the agent
         """
-        image = Image.new("RGB", (self.width, self.height * 2), GROUND_COLOUR)
-        self.sky.obs.date = datetime.now()
-        self.sky.generate()
-        self.eye.facing_direction = r
-        self.eye.set_sky(self.sky)
+
+        # set the default values for the dimensions of the world
+        if width is None:
+            width = self.width
+        if length is None:
+            length = self.length
+        if height is None:
+            height = self.height
+        if x is None:
+            x = width / 2.
+        if y is None:
+            y = length / 2.
+        if z is None:
+            z = height / 2. + .06 * height
+
+        # create ommatidia positions with respect to the resolution
+        # (this is for the sky drawing on the panoramic images)
+        thetas = np.linspace(-np.pi, np.pi, width, endpoint=False)
+        phis = np.linspace(np.pi/2, 0, height / 2, endpoint=False)
+        thetas, phis = np.meshgrid(phis, thetas)
+        ommatidia = np.array([thetas.flatten(), phis.flatten()]).T
+
+        image = Image.new("RGB", (width, height), GROUND_COLOUR)
         draw = ImageDraw.Draw(image)
 
-        pix = image.load()
-        for i, c in enumerate(self.eye.L):
-            pix[i // self.height, i % self.height] = tuple(np.int32(255 * c))
+        if self.uniform_sky:
+            draw.rectangle((0, 0, width, height/2), fill=SKY_COLOUR)
+        else:
+            # create a compound eye model for the sky pixels
+            self.eye = CompoundEye(ommatidia)
+            if update_sky:
+                self.sky.obs.date = datetime.now()
+                self.sky.generate()
+            self.eye.facing_direction = -r
+            self.eye.set_sky(self.sky)
 
-        pos = np.array([x, y, z])
+            pix = image.load()
+            for i, c in enumerate(self.eye.L):
+                pix[i // (height / 2), i % (height / 2)] = tuple(np.int32(255 * c))
+
         R = np.array([
-            [np.cos(-r), -np.sin(-r), 0],
-            [np.sin(-r), np.cos(-r), 0],
+            [np.cos(r), -np.sin(r), 0],
+            [np.sin(r), np.cos(r), 0],
             [0, 0, 1]
         ])
         thetas, phis, rhos = [], [], []
-        for p in self.polygons:
+        polygons = self.polygons * [width, length, height]
+        polygons = polygons + [width / 2, length / 2, height / 2]
+        pos = np.array([x, y, z]) / self.ratio2meters - .5
+        pos *= np.array([width, length, height])
+        pos += np.array([width / 2, length / 2, height / 2])
+        for p in polygons:
             theta, phi, rho = vec2sph((p.xyz - pos).dot(R))
             thetas.append(theta)
             phis.append(phi)
             rhos.append(rho)
 
-        thetas = 2 * self.height * ((np.array(thetas) % np.pi) / np.pi)
-        phis = self.width * ((np.pi + np.array(phis)) % (2 * np.pi)) / (2 * np.pi)
+        thetas = height * ((np.array(thetas) % np.pi) / np.pi)
+        phis = width * ((np.pi + np.array(phis)) % (2 * np.pi)) / (2 * np.pi)
         rhos = la.norm(np.array(rhos), axis=-1)
         ind = np.argsort(rhos)[::-1]
-        for theta, phi, c in zip(thetas[ind], phis[ind], self.polygons.c_int32[ind]):
-            if phi.max() - phi.min() < WIDTH/2:  # normal conditions
+        for theta, phi, c in zip(thetas[ind], phis[ind], polygons.c_int32[ind]):
+            if phi.max() - phi.min() < width/2:  # normal conditions
                 p = tuple((b, a) for a, b in zip(theta, phi))
                 draw.polygon(p, fill=tuple(c))
             else:   # in case that the object is on the edge of the screen
                 phi0, phi1 = phi.copy(), phi.copy()
-                phi0[phi < WIDTH/2] += WIDTH
-                phi1[phi >= WIDTH/2] -= WIDTH
+                phi0[phi < width/2] += width
+                phi1[phi >= width/2] -= width
                 p = tuple((b, a) for a, b in zip(theta, phi0))
                 draw.polygon(p, fill=tuple(c))
                 p = tuple((b, a) for a, b in zip(theta, phi1))
@@ -405,7 +473,7 @@ class Polygon(object):
 
 class Route(object):
 
-    def __init__(self, xs, ys, zs=None, phis=None, nant=None, nroute=None):
+    def __init__(self, xs, ys, zs=None, phis=None, condition=NoneCondition(), nant=None, nroute=None):
         self.x = np.array(xs)
         self.y = np.array(ys)
         if isinstance(zs, Number):
@@ -424,21 +492,65 @@ class Route(object):
         self.nant = nant if nant is not None else -1
         self.nroute = nroute if nroute is not None else -1
 
+        self.__condition = condition
+        dx = np.sqrt(np.square(self.x[1:] - self.x[:-1]) + np.square(self.y[1:] - self.y[:-1]))
+        self.__mean_dx = dx.mean() if dx.size > 0 else 0.
+        self.dt = 2. / self.x.size  # the duration of the route is 2s
+
+    @property
+    def dx(self):
+        if isinstance(self.condition, Stepper):
+            return self.condition.__step
+        else:
+            return self.__mean_dx
+
+    @dx.setter
+    def dx(self, value):
+        if isinstance(self.condition, Stepper):
+            self.condition.__step = value
+        else:
+            self.__mean_dx = value
+
+    @property
+    def condition(self):
+        return self.__condition
+
+    @condition.setter
+    def condition(self, value):
+        if isinstance(value, Stepper):
+            self.__mean_dx = value.__step
+        self.__condition = value
+
     @property
     def xyz(self):
-        return tuple((x, y, z) for x, y, z in zip(self.x, self.y, self.z))
+        return tuple((x, y, z) for x, y, z, _ in self.__iter__())
 
     @property
     def xy(self):
-        return tuple((x, y) for x, y in zip(self.x, self.y))
+        return tuple((x, y) for x, y, _, _ in self.__iter__())
 
     def normalise(self, xmax=None, ymax=None, zmax=None):
         if xmax is not None:
             self.x = (self.x / xmax - .5)
+            self.dx /= xmax
         if ymax is not None:
             self.y = (self.y / ymax - .5)
         if zmax is not None:
             self.z = (self.z / zmax - .5)
+
+    def __iter__(self):
+        px, py, pz, p_phi = self.x[0], self.y[0], self.z[0], self.phi[0]
+
+        for x, y, z, phi in zip(self.x[1:], self.y[1:], self.z[1:], self.phi[1:]):
+            dv = np.array([x - px, y - py, z - pz])
+            d = np.sqrt(np.square(dv).sum())
+            p_phi = np.arctan2(dv[1], dv[0])
+            if self.condition.valid(d, p_phi):
+                # TODO: fix stepping orientation
+                yield px, py, pz, p_phi
+                px, py, pz = x, y, z
+
+        yield px, py, pz, p_phi
 
     def __add__(self, other):
         p = self.__copy__()
@@ -487,8 +599,11 @@ class Route(object):
         if type(other) is tuple or type(other) is list or type(other) is np.ndarray:
             if len(other) > 0:
                 p.x *= other[0]
+                p.dx *= other[0]
             if len(other) > 1:
                 p.y *= other[1]
+                p.dx /= other[0]
+                p.dx *= np.sqrt(np.square(other[:2]).sum())
             elif len(other) > 0:
                 p.y *= other[0]
             if len(other) > 2:
@@ -501,6 +616,7 @@ class Route(object):
             p.x *= other
             p.y *= other
             p.z *= other
+            p.dx *= other
         return p
 
     def __div__(self, other):
@@ -508,8 +624,11 @@ class Route(object):
         if type(other) is tuple or type(other) is list or type(other) is np.ndarray:
             if len(other) > 0:
                 p.x /= other[0]
+                p.dx /= other[0]
             if len(other) > 1:
                 p.y /= other[1]
+                p.dx *= other[0]
+                p.dx /= np.sqrt(np.square(other[:2]).sum())
             elif len(other) > 0:
                 p.y /= other[0]
             if len(other) > 2:
@@ -522,10 +641,12 @@ class Route(object):
             p.x /= other
             p.y /= other
             p.z /= other
+            p.dx /= other
         return p
 
     def __copy__(self):
-        return Route(self.x.copy(), self.y.copy(), self.z.copy(), self.phi.copy(), self.nant, self.nroute)
+        return Route(xs=self.x.copy(), ys=self.y.copy(), zs=self.z.copy(), phis=self.phi.copy(),
+                     condition=self.condition, nant=self.nant, nroute=self.nroute)
 
     def __str__(self):
         if self.nant > 0 and self.nroute > 0:
@@ -539,3 +660,17 @@ class Route(object):
         for x, y, z in self.xyz:
             s += "(%.2f, %.2f) " % (x, y)
         return s[:-1]
+
+    def save(self, filename):
+        np.savez_compressed(filename,
+                            ant=self.nant, route=self.nroute, dt=self.dt,
+                            x=self.x, y=self.y, z=self.z, phi=self.phi)
+
+    @classmethod
+    def from_file(cls, filename):
+        data = np.load(filename)
+        new_route = Route(
+            xs=data['x'], ys=data['y'], zs=data['z'], phis=data['phi'],
+            nant=data['ant'], nroute=data['route'])
+        new_route.dt = data['dt']
+        return new_route

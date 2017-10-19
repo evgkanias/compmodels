@@ -10,11 +10,13 @@ with open(cpath + 'params.yaml', 'rb') as f:
     params = yaml.safe_load(f)
 
 GAIN = params['gain']
+LEARNING_RATE = params['learning-rate']
+KC_THRESHOLD = params['kc-threshold']
 
 
 class Willshaw(object):
 
-    def __init__(self, gain=GAIN, learning_rate=.1, tau=1.7, dtype=np.float32):
+    def __init__(self, gain=GAIN, learning_rate=LEARNING_RATE, tau=KC_THRESHOLD, dtype=np.float32):
         self.dtype = dtype
         self.learning_rate = learning_rate
         self.gain = gain
@@ -44,9 +46,9 @@ class Willshaw(object):
 
     def __call__(self, *args, **kwargs):
         pn, kc, en = self._fprop(args[0])
-        print "PN", pn.max()
-        print "KC", kc.sum()
-        print "EN", en.sum()
+        # print "PN", pn.max()
+        # print "KC", kc.sum()
+        # print "EN", en.sum()
         if self.__update:
             self._update(kc)
         return en

@@ -1,4 +1,6 @@
 gain: -20.
+learning-rate: .1
+kc-threshold: 1.7
 neurons:
   PN: 360
   KC: 20000

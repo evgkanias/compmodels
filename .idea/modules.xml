@@ -2,6 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/../skylight/.idea/skylight.iml" filepath="$PROJECT_DIR$/../skylight/.idea/skylight.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/willshaw.iml" filepath="$PROJECT_DIR$/.idea/willshaw.iml" />
     </modules>
   </component>
