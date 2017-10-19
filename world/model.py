@@ -1,5 +1,6 @@
 import numpy as np
 import numpy.linalg as la
+from copy import copy
 from datetime import datetime
 from numbers import Number
 from PIL import ImageDraw, Image
@@ -496,13 +497,14 @@ class Route(object):
         dx = np.sqrt(np.square(self.x[1:] - self.x[:-1]) + np.square(self.y[1:] - self.y[:-1]))
         self.__mean_dx = dx.mean() if dx.size > 0 else 0.
         self.dt = 2. / self.x.size  # the duration of the route is 2s
+        self.__normalise_factor = 1.
 
     @property
     def dx(self):
         if isinstance(self.condition, Stepper):
-            return self.condition.__step
+            return self.condition.__step / self.__normalise_factor
         else:
-            return self.__mean_dx
+            return self.__mean_dx / self.__normalise_factor
 
     @dx.setter
     def dx(self, value):
@@ -532,25 +534,29 @@ class Route(object):
     def normalise(self, xmax=None, ymax=None, zmax=None):
         if xmax is not None:
             self.x = (self.x / xmax - .5)
-            self.dx /= xmax
+            self.__normalise_factor = xmax
         if ymax is not None:
             self.y = (self.y / ymax - .5)
+            if xmax is None:
+                self.__normalise_factor = ymax
         if zmax is not None:
             self.z = (self.z / zmax - .5)
+            if xmax is None and ymax is None:
+                self.__normalise_factor = zmax
 
     def __iter__(self):
         px, py, pz, p_phi = self.x[0], self.y[0], self.z[0], self.phi[0]
+        phi = 0.
 
-        for x, y, z, phi in zip(self.x[1:], self.y[1:], self.z[1:], self.phi[1:]):
+        for x, y, z in zip(self.x[1:], self.y[1:], self.z[1:]):
             dv = np.array([x - px, y - py, z - pz])
             d = np.sqrt(np.square(dv).sum())
-            p_phi = np.arctan2(dv[1], dv[0])
-            if self.condition.valid(d, p_phi):
-                # TODO: fix stepping orientation
-                yield px, py, pz, p_phi
-                px, py, pz = x, y, z
+            phi = np.arctan2(dv[1], dv[0])
+            if self.condition.valid(d * self.__normalise_factor, np.abs(phi - p_phi)):
+                yield px, py, pz, phi
+                px, py, pz, pphi = x, y, z, phi
 
-        yield px, py, pz, p_phi
+        yield px, py, pz, phi
 
     def __add__(self, other):
         p = self.__copy__()
@@ -599,11 +605,11 @@ class Route(object):
         if type(other) is tuple or type(other) is list or type(other) is np.ndarray:
             if len(other) > 0:
                 p.x *= other[0]
-                p.dx *= other[0]
+                p.__normalise_factor /= other[0]
             if len(other) > 1:
                 p.y *= other[1]
-                p.dx /= other[0]
-                p.dx *= np.sqrt(np.square(other[:2]).sum())
+                p.__normalise_factor *= other[0]
+                p.__normalise_factor /= np.sqrt(np.square(other[:2]).sum())
             elif len(other) > 0:
                 p.y *= other[0]
             if len(other) > 2:
@@ -616,7 +622,7 @@ class Route(object):
             p.x *= other
             p.y *= other
             p.z *= other
-            p.dx *= other
+            p.__normalise_factor /= other
         return p
 
     def __div__(self, other):
@@ -624,11 +630,11 @@ class Route(object):
         if type(other) is tuple or type(other) is list or type(other) is np.ndarray:
             if len(other) > 0:
                 p.x /= other[0]
-                p.dx /= other[0]
+                p.__normalise_factor *= other[0]
             if len(other) > 1:
                 p.y /= other[1]
-                p.dx *= other[0]
-                p.dx /= np.sqrt(np.square(other[:2]).sum())
+                p.__normalise_factor /= other[0]
+                p.__normalise_factor *= np.sqrt(np.square(other[:2]).sum())
             elif len(other) > 0:
                 p.y /= other[0]
             if len(other) > 2:
@@ -641,24 +647,27 @@ class Route(object):
             p.x /= other
             p.y /= other
             p.z /= other
-            p.dx /= other
+            p.__normalise_factor *= other
         return p
 
     def __copy__(self):
-        return Route(xs=self.x.copy(), ys=self.y.copy(), zs=self.z.copy(), phis=self.phi.copy(),
-                     condition=self.condition, nant=self.nant, nroute=self.nroute)
+        r = Route(xs=self.x.copy(), ys=self.y.copy(), zs=self.z.copy(), phis=self.phi.copy(),
+                  condition=self.condition, nant=self.nant, nroute=self.nroute)
+        r.__normalise_factor = self.__normalise_factor
+        return r
 
     def __str__(self):
         if self.nant > 0 and self.nroute > 0:
-            s = "Ant: %02d, Route %02d: " % (self.nant, self.nroute)
+            s = "Ant: %02d, Route %02d," % (self.nant, self.nroute)
         elif self.nant > 0 >= self.nroute:
-            s = "Ant: %02d: " % self.nant
+            s = "Ant: %02d," % self.nant
         elif self.nant <= 0 < self.nroute:
-            s = "Route %02d: " % self.nroute
+            s = "Route: %02d," % self.nroute
         else:
-            s = "Route: "
+            s = "Route:"
         for x, y, z in self.xyz:
-            s += "(%.2f, %.2f) " % (x, y)
+            s += " (%.2f, %.2f)" % (x, y)
+        s += ", Step: % 2.2f" % self.dx
         return s[:-1]
 
     def save(self, filename):
@@ -674,3 +683,22 @@ class Route(object):
             nant=data['ant'], nroute=data['route'])
         new_route.dt = data['dt']
         return new_route
+
+
+def route_like(r, xs=None, ys=None, zs=None, phis=None, condition=None, nant=None, nroute=None):
+    new_route = copy(r)
+    if xs is not None:
+        new_route.x = np.array(xs)
+    if ys is not None:
+        new_route.y = np.array(ys)
+    if zs is not None:
+        new_route.z = np.array(zs)
+    if phis is not None:
+        new_route.phi = np.array(phis)
+    if condition is not None:
+        new_route.condition = condition
+    if nant is not None:
+        new_route.nant = nant
+    if nroute is not None:
+        new_route.nroute = nroute
+    return new_route

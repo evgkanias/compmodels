@@ -48,8 +48,8 @@ if __name__ == "__main__":
 
     H = 500
     W = 1000
-    mode = "panorama"
-    # mode = "top"
+    # mode = "panorama"
+    mode = "top"
 
     done = False
 
@@ -57,7 +57,7 @@ if __name__ == "__main__":
     # world.uniform_sky = True
     routes = load_routes()
     for route in routes:
-        route.condition = Stepper(1)
+        route.condition = Stepper(.1)
         world.add_route(route)
         break
 

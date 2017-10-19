@@ -1,5 +1,5 @@
 import numpy as np
-from world import Route, World, Stepper, Turner, NoneCondition, save_route
+from world import Route, World, route_like, Hybrid, NoneCondition, save_route
 from net import Willshaw
 
 
@@ -117,8 +117,9 @@ class Agent(object):
         for r in self.homing_routes:
             # add a copy of the current route to the world to visualise the path
             xs, ys, zs, phis = [self.pos[0]], [self.pos[1]], [self.pos[2]], [self.rot[1]]
-            self.world.routes.append(Route(xs, ys, zs, phis, self.condition,
-                                           nant=self.id, nroute=len(self.world.routes) + 1))
+            self.world.routes.append(
+                route_like(r, xs, ys, zs, phis, self.condition, nant=self.id, nroute=len(self.world.routes) + 1)
+            )
             counter = 0         # count the steps
             pphi = self.rot[1]  # initialise the last orientation to the current
 
@@ -143,30 +144,29 @@ class Agent(object):
                 ys.append(y)
                 zs.append(z)
                 phis.append(phi)
-                self.world.routes[-1] = Route(xs, ys, zs, phis, self.condition, self.id, len(self.world.routes))
+                self.world.routes[-1] = route_like(self.world.routes[-1], xs, ys, zs, phis)
 
                 d_phi = np.abs(phi - pphi)
-                # TODO: make this parametriseable
-                if d_phi > np.pi / 32 or distance // 1 > counter or True:
-                    # generate the visual input and transform it to the projecting neurons
-                    pn = self.img2pn(self.world_snapshot())
-                    # make a forward pass from the network (updating the parameters)
-                    en = self._net(pn)
-                    counter += 1
 
-                    # update view
-                    if visualise == "top":
-                        snap, _ = self.world.draw_top_view(width=1000, length=1000)
-                    elif visualise == "panorama":
-                        snap = self.world_snapshot(width=1000, height=500)
-                    if visualise in ["top", "panorama"]:
-                        screen.blit(pygame.image.fromstring(snap.tobytes("raw", "RGB"), snap.size, "RGB"), (0, 0))
-                        pygame.display.flip()
-                        pygame.display.set_caption("% 2d EN: % 2d Distance: %.2f D_phi: % 2.2f" % (
-                            counter, en, distance, np.rad2deg(d_phi)))
+                # generate the visual input and transform it to the projecting neurons
+                pn = self.img2pn(self.world_snapshot())
+                # make a forward pass from the network (updating the parameters)
+                en = self._net(pn)
+                counter += 1
 
-                        if done:
-                            break
+                # update view
+                if visualise == "top":
+                    snap, _ = self.world.draw_top_view(width=1000, length=1000)
+                elif visualise == "panorama":
+                    snap = self.world_snapshot(width=1000, height=500)
+                if visualise in ["top", "panorama"]:
+                    screen.blit(pygame.image.fromstring(snap.tobytes("raw", "RGB"), snap.size, "RGB"), (0, 0))
+                    pygame.display.flip()
+                    pygame.display.set_caption("% 2d EN: % 2d Distance: %.2f D_phi: % 2.2f" % (
+                        counter, en, distance, np.rad2deg(d_phi)))
+
+                    if done:
+                        break
 
                 # update last orientation
                 pphi = phi
@@ -200,8 +200,9 @@ class Agent(object):
 
         # add a copy of the current route to the world to visualise the path
         xs, ys, zs, phis = [self.pos[0]], [self.pos[1]], [self.pos[2]], [self.rot[1]]
-        self.world.routes.append(Route(xs, ys, zs, phis, condition=self.condition,
-                                       nant=self.id, nroute=len(self.world.routes) + 1))
+        self.world.routes.append(route_like(
+            self.world.routes[0], xs, ys, zs, phis, NoneCondition(), nant=self.id, nroute=len(self.world.routes) + 1)
+        )
         d_nest = lambda: np.sqrt(np.square(self.pos[:2] - self.nest).sum()) * self.world.ratio2meters
         d_feeder = 0
         counter = 0
@@ -241,8 +242,8 @@ class Agent(object):
             zs.append(self.pos[2])
             phis.append(self.rot[1])
 
-            self.world.routes[-1] = Route(xs, ys, zs, phis, condition=self.condition,
-                                          nant=self.id, nroute=len(self.world.routes))
+            self.world.routes[-1] = route_like(
+                self.world.routes[-1], xs, ys, zs, phis)
             print self.world.routes[-1]
 
             if visualise == "top":
@@ -279,12 +280,15 @@ if __name__ == "__main__":
 
     update_sky = False
     uniform_sky = False
-    condition = Stepper(.1)
+    step = .5  # 50 cm
+    condition = Hybrid(
+        step=step,          # 50 cm
+        tau_phi=np.pi / 3   # 60 deg
+    )
 
     world = load_world()
     world.uniform_sky = uniform_sky
     routes = load_routes()
-    routes[0].dx = .1  # 10cm
     world.add_route(routes[0])
     print world.routes[0]
 
@@ -294,6 +298,7 @@ if __name__ == "__main__":
 
     agent = Agent(condition=condition, live_sky=update_sky)
     agent.set_world(world)
+    agent.dx = step / world.ratio2meters
     for route in agent.start_learning_walk(visualise="panorama"):
         print "Learned route:", route
         if route is not None:
