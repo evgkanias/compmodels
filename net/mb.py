@@ -22,9 +22,9 @@ class Willshaw(object):
         self.gain = gain
         self._tau = tau
 
-        self.nb_pn = params['neurons']['PN']
-        self.nb_kc = params['neurons']['KC']
-        self.nb_en = params['neurons']['EN']
+        self.nb_pn = params['mushroom-body']['PN']
+        self.nb_kc = params['mushroom-body']['KC']
+        self.nb_en = params['mushroom-body']['EN']
 
         self.w_pn2kc = generate_pn2kc_weights(self.nb_pn, self.nb_kc, dtype=self.dtype)
         self.w_kc2en = np.ones((self.nb_kc, self.nb_en), dtype=self.dtype)

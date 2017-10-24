@@ -474,7 +474,7 @@ class Polygon(object):
 
 class Route(object):
 
-    def __init__(self, xs, ys, zs=None, phis=None, condition=NoneCondition(), nant=None, nroute=None):
+    def __init__(self, xs, ys, zs=None, phis=None, condition=NoneCondition(), nant=None, nroute=None, ratio2meters=1.):
         self.x = np.array(xs)
         self.y = np.array(ys)
         if isinstance(zs, Number):
@@ -497,7 +497,8 @@ class Route(object):
         dx = np.sqrt(np.square(self.x[1:] - self.x[:-1]) + np.square(self.y[1:] - self.y[:-1]))
         self.__mean_dx = dx.mean() if dx.size > 0 else 0.
         self.dt = 2. / self.x.size  # the duration of the route is 2s
-        self.__normalise_factor = 1.
+
+        self.__normalise_factor = ratio2meters
 
     @property
     def dx(self):
@@ -531,18 +532,28 @@ class Route(object):
     def xy(self):
         return tuple((x, y) for x, y, _, _ in self.__iter__())
 
+    @property
+    def normalise_factor(self):
+        return self.__normalise_factor
+
     def normalise(self, xmax=None, ymax=None, zmax=None):
+        if np.any([self.x < 0, self.y < 0, self.z < 0]):
+            a = .5
+        else:
+            a = 0.
+
         if xmax is not None:
-            self.x = (self.x / xmax - .5)
-            self.__normalise_factor = xmax
+            self.x = (self.x * self.__normalise_factor / xmax - .5 + a)
         if ymax is not None:
-            self.y = (self.y / ymax - .5)
-            if xmax is None:
-                self.__normalise_factor = ymax
+            self.y = (self.y * self.__normalise_factor / ymax - .5 + a)
         if zmax is not None:
-            self.z = (self.z / zmax - .5)
-            if xmax is None and ymax is None:
-                self.__normalise_factor = zmax
+            self.z = (self.z * self.__normalise_factor / zmax - .5 + a)
+        if xmax is not None:
+            self.__normalise_factor = xmax
+        elif ymax is not None:
+            self.__normalise_factor = ymax
+        elif zmax is not None:
+            self.__normalise_factor = zmax
 
     def __iter__(self):
         px, py, pz, p_phi = self.x[0], self.y[0], self.z[0], self.phi[0]
@@ -654,6 +665,9 @@ class Route(object):
         r = Route(xs=self.x.copy(), ys=self.y.copy(), zs=self.z.copy(), phis=self.phi.copy(),
                   condition=self.condition, nant=self.nant, nroute=self.nroute)
         r.__normalise_factor = self.__normalise_factor
+        r.__mean_dx = self.__mean_dx
+        r.dt = self.dt
+
         return r
 
     def __str__(self):
@@ -672,6 +686,7 @@ class Route(object):
 
     def save(self, filename):
         np.savez_compressed(filename,
+                            mean_dx=self.__mean_dx, norm_factor=self.__normalise_factor,
                             ant=self.nant, route=self.nroute, dt=self.dt,
                             x=self.x, y=self.y, z=self.z, phi=self.phi)
 
@@ -679,9 +694,12 @@ class Route(object):
     def from_file(cls, filename):
         data = np.load(filename)
         new_route = Route(
-            xs=data['x'], ys=data['y'], zs=data['z'], phis=data['phi'],
+            xs=data['x'], ys=data['y'], zs=data['z'], phis=data['phi'], condition=NoneCondition(),
             nant=data['ant'], nroute=data['route'])
         new_route.dt = data['dt']
+        new_route.__normalise_factor = data['norm_factor']
+        new_route.__mean_dx = data['mean_dx']
+
         return new_route
 
 

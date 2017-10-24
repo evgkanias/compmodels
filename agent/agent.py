@@ -1,5 +1,5 @@
 import numpy as np
-from world import Route, World, route_like, Hybrid, NoneCondition, save_route
+from world import Route, World, route_like, Hybrid, NoneCondition, save_route, __data__
 from net import Willshaw
 
 
@@ -200,6 +200,7 @@ class Agent(object):
 
         # add a copy of the current route to the world to visualise the path
         xs, ys, zs, phis = [self.pos[0]], [self.pos[1]], [self.pos[2]], [self.rot[1]]
+        ens = []
         self.world.routes.append(route_like(
             self.world.routes[0], xs, ys, zs, phis, NoneCondition(), nant=self.id, nroute=len(self.world.routes) + 1)
         )
@@ -211,7 +212,7 @@ class Agent(object):
             phi = self.rot[1]
             # if d_feeder // .1 > counter:
             en = []
-            for d_phi in np.linspace(-np.pi / 6, np.pi / 6, 61):
+            for d_phi in np.linspace(-np.pi / 3, np.pi / 3, 61):
                 if visualise in ["top", "panorama"]:
                     for event in pygame.event.get():
                         if event.type == pygame.QUIT:
@@ -228,10 +229,11 @@ class Agent(object):
                 break
 
             en = np.array(en).flatten()
+            ens.append(en)
             # show preference to the least turning angle
             en += np.append(np.linspace(.01, 0., 30, endpoint=False), np.linspace(0., .01, 31))
             print ("EN:" + " %.2f" * 31 + "\n   " + " %.2f" * 30) % tuple(en)
-            phi += np.deg2rad(en.argmin() - 30)
+            phi += np.deg2rad(2 * (en.argmin() - 30))
 
             counter += 1
 
@@ -254,13 +256,15 @@ class Agent(object):
                 screen.blit(pygame.image.fromstring(snap.tobytes("raw", "RGB"), snap.size, "RGB"), (0, 0))
                 pygame.display.flip()
                 pygame.display.set_caption("C: % 2d, EN: % 3d (%.2f), D: %.2f, D_nest: %.2f" % (
-                    counter, en.argmin() - 30, en.min(), d_feeder, d_nest()))
+                    counter, 2 * (en.argmin() - 30), en.min(), d_feeder, d_nest()))
 
             if d_feeder > 15:
                 break
             d_feeder += self.dx * self.world.ratio2meters
         self.world.routes.remove(self.world.routes[-1])
-        return Route(xs, ys, zs, phis, condition=self.condition, nant=self.id, nroute=len(self.world.routes) + 1)
+        np.savez(__data__ + "EN/%s.npz" % self.name, en=np.array(ens))
+        return Route(xs, ys, zs, phis, condition=self.condition, nant=self.id, nroute=len(self.world.routes) + 1,
+                     ratio2meters=self.world.ratio2meters)
 
     def world_snapshot(self, d_phi=0, width=None, height=None):
         x, y, z = (self.pos + .5) * self.world.ratio2meters
@@ -278,12 +282,14 @@ class Agent(object):
 if __name__ == "__main__":
     from world import load_world, load_routes
 
+    agent_name = "60-deg"
     update_sky = False
     uniform_sky = False
-    step = .5  # 50 cm
+    step = .1       # 10 cm
+    tau_phi = 0.    # 60 deg
     condition = Hybrid(
-        step=step,          # 50 cm
-        tau_phi=np.pi / 3   # 60 deg
+        step=step,
+        tau_phi=tau_phi
     )
 
     world = load_world()
@@ -293,24 +299,24 @@ if __name__ == "__main__":
     print world.routes[0]
 
     img, _ = world.draw_top_view(1000, 1000)
-    img.save("training-route.png", "PNG")
-    # img.show(title="Training route")
+    img.save(__data__ + "routes-img/training-%s.png" % agent_name, "PNG")
+    img.show(title="Training route")
 
-    agent = Agent(condition=condition, live_sky=update_sky)
+    agent = Agent(condition=condition, live_sky=update_sky, name=agent_name)
     agent.set_world(world)
     agent.dx = step / world.ratio2meters
     for route in agent.start_learning_walk(visualise="panorama"):
         print "Learned route:", route
         if route is not None:
-            save_route(route, "learned-%d-%d" % (route.nant, route.nroute))
+            save_route(route, "learned-%d-%d-%s" % (route.nant, route.nroute, agent_name))
 
     route = agent.start_homing(visualise="top")
     print route
     if route is not None:
-        save_route(route, "homing-%d-%d" % (route.nant, route.nroute))
+        save_route(route, "homing-%d-%d-%s" % (route.nant, route.nroute, agent_name))
 
     del world.routes[:]
     world.routes.append(route)
     img, _ = world.draw_top_view(1000, 1000)
-    img.save("testing-route.png", "PNG")
+    img.save(__data__ + "routes-img/testing-%s.png" % agent_name, "PNG")
     img.show(title="Testing route")

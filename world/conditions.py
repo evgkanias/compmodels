@@ -27,7 +27,7 @@ class Stepper(NoneCondition):
 
 class Turner(NoneCondition):
 
-    def __init__(self, tau_phi=np.pi):
+    def __init__(self, tau_phi=0.):
         super(Turner, self).__init__()
         self.__tau_phi = np.abs(tau_phi)
 
@@ -37,7 +37,7 @@ class Turner(NoneCondition):
 
 class Hybrid(NoneCondition):
 
-    def __init__(self, step=0., tau_phi=np.pi):
+    def __init__(self, step=0., tau_phi=0.):
         super(Hybrid, self).__init__()
         self.__step = np.abs(step)
         self.__tau_phi = np.abs(tau_phi)
