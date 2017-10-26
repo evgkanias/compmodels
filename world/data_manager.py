@@ -1,6 +1,7 @@
 import os
 from scipy.io import loadmat
 from model import *
+from geometry import PolygonList, Polygon, Route
 
 __dir__ = os.path.dirname(os.path.realpath(__file__))
 __data__ = __dir__ + "/../data/"
@@ -27,7 +28,7 @@ def load_routes(routes_filename=ROUTES_FILENAME):
         while key(ant, route) in mat.keys():
             mat[key(ant, route)][:, :2] /= 100.  # convert the route data to meters
             xs, ys, phis = mat[key(ant, route)].T
-            r = Route(xs, ys, .01, phis=np.deg2rad(phis), nant=ant, nroute=route)
+            r = Route(xs, ys, .01, phis=np.deg2rad(phis), agent_no=ant, route_no=route)
             routes.append(r)
             route += 1
         ant += 1

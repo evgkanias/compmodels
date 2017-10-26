@@ -1,18 +1,24 @@
 import numpy as np
-from world import Route, World, route_like, Hybrid, NoneCondition, save_route, __data__
+from world import Route, World, route_like, Hybrid, save_route, __data__
 from net import Willshaw
 
 
 class Agent(object):
     __latest_agent_id__ = 0
 
-    def __init__(self, init_pos=np.zeros(3), init_rot=np.zeros(2), condition=NoneCondition(), live_sky=True, name=None):
+    def __init__(self, init_pos=np.zeros(3), init_rot=np.zeros(2), condition=Hybrid(), live_sky=True, name=None):
         """
 
         :param init_pos: the initial position
+        :type init_pos: np.ndarray
         :param init_rot: the initial orientation
+        :type init_rot: np.ndarray
+        :param condition:
+        :type condition: Hybrid
         :param live_sky: flag to update the sky with respect to the time
+        :type live_sky: bool
         :param name: a name for the agent
+        :type name: basestring
         """
         self.pos = init_pos
         self.rot = init_rot
@@ -21,11 +27,11 @@ class Agent(object):
         self.live_sky = live_sky
 
         self.homing_routes = []
-        self.world = None
+        self.world = None  # type: World
         self._net = Willshaw()  # learning_rate=1)
         self.__is_foraging = False
         self.__is_homing = False
-        self.dx = 0
+        self.dx = 0.  # type: float
         self.condition = condition
 
         Agent.__latest_agent_id__ += 1
@@ -47,7 +53,7 @@ class Agent(object):
 
         if len(self.homing_routes) > 0:
             self.pos[:2] = self.feeder.copy()
-            self.rot[1] = self.homing_routes[-1].phi[-1]
+            self.rot[1] = self.homing_routes[-1].phi[0]
             return True
         else:
             # TODO: warn about the existence of the route
@@ -99,6 +105,8 @@ class Agent(object):
             yield None
             return
 
+        screen = None  # type: pygame.display
+
         # initialise visualisation
         if visualise in ["top", "panorama"]:
             import pygame
@@ -118,7 +126,7 @@ class Agent(object):
             # add a copy of the current route to the world to visualise the path
             xs, ys, zs, phis = [self.pos[0]], [self.pos[1]], [self.pos[2]], [self.rot[1]]
             self.world.routes.append(
-                route_like(r, xs, ys, zs, phis, self.condition, nant=self.id, nroute=len(self.world.routes) + 1)
+                route_like(r, xs, ys, zs, phis, self.condition, agent_no=self.id, route_no=len(self.world.routes) + 1)
             )
             counter = 0         # count the steps
             pphi = self.rot[1]  # initialise the last orientation to the current
@@ -136,8 +144,7 @@ class Agent(object):
                 self.pos[:] = x, y, z
                 self.rot[1] = phi
                 # calculate the distance from the start position (feeder)
-                dx = np.sqrt(np.square(self.pos[:2] - self.feeder[:2]).sum())
-                distance = dx * self.world.ratio2meters
+                distance = np.sqrt(np.square(self.pos[:2] - self.feeder[:2]).sum())
 
                 # update the route in the world
                 xs.append(x)
@@ -187,6 +194,8 @@ class Agent(object):
             print "Resetting..."
             self.reset()
 
+        screen = None  # type: pygame.display
+
         # initialise the visualisation
         if visualise in ["top", "panorama"]:
             import pygame
@@ -202,9 +211,10 @@ class Agent(object):
         xs, ys, zs, phis = [self.pos[0]], [self.pos[1]], [self.pos[2]], [self.rot[1]]
         ens = []
         self.world.routes.append(route_like(
-            self.world.routes[0], xs, ys, zs, phis, NoneCondition(), nant=self.id, nroute=len(self.world.routes) + 1)
+            self.world.routes[0], xs, ys, zs, phis, agent_no=self.id, route_no=len(self.world.routes) + 1)
         )
-        d_nest = lambda: np.sqrt(np.square(self.pos[:2] - self.nest).sum()) * self.world.ratio2meters
+
+        d_nest = lambda: np.sqrt(np.square(self.pos[:2] - self.nest).sum())
         d_feeder = 0
         counter = 0
         while d_nest() > 0.1:
@@ -260,14 +270,13 @@ class Agent(object):
 
             if d_feeder > 15:
                 break
-            d_feeder += self.dx * self.world.ratio2meters
+            d_feeder += self.dx
         self.world.routes.remove(self.world.routes[-1])
         np.savez(__data__ + "EN/%s.npz" % self.name, en=np.array(ens))
-        return Route(xs, ys, zs, phis, condition=self.condition, nant=self.id, nroute=len(self.world.routes) + 1,
-                     ratio2meters=self.world.ratio2meters)
+        return Route(xs, ys, zs, phis, condition=self.condition, agent_no=self.id, route_no=len(self.world.routes) + 1)
 
     def world_snapshot(self, d_phi=0, width=None, height=None):
-        x, y, z = (self.pos + .5) * self.world.ratio2meters
+        x, y, z = self.pos
         phi = self.rot[1] + d_phi
         img, _ = self.world.draw_panoramic_view(x, y, z, phi, update_sky=self.live_sky,
                                                 width=width, length=width, height=height)
@@ -281,42 +290,65 @@ class Agent(object):
 
 if __name__ == "__main__":
     from world import load_world, load_routes
+    from datetime import datetime
+    import os
+    import yaml
 
-    agent_name = "60-deg"
+    # get path of the script
+    cpath = os.path.dirname(os.path.abspath(__file__)) + '/'
+    enpath = cpath + "../data/EN/tests.yaml"
+
+    # load tests
+    with open(enpath, 'rb') as f:
+        tests = yaml.safe_load(f)
+
+    date = datetime.now().strftime("%Y-%m-%d_%H-%M")
     update_sky = False
     uniform_sky = False
+    enable_pol = False
+    sky_type = "uniform" if uniform_sky else "live" if update_sky else "fixed"
+    if not enable_pol:
+        sky_type += "-no-pol"
     step = .1       # 10 cm
-    tau_phi = 0.    # 60 deg
-    condition = Hybrid(
-        step=step,
-        tau_phi=tau_phi
-    )
+    tau_phi = np.pi    # 60 deg
+    condition = Hybrid(tau_x=step, tau_phi=tau_phi)
+    agent_name = "%s_s%02d-%s-sky" % (date, step * 100, sky_type)
+    print agent_name
 
     world = load_world()
+    world.enable_pol_filters(enable_pol)
     world.uniform_sky = uniform_sky
     routes = load_routes()
     world.add_route(routes[0])
-    print world.routes[0]
-
-    img, _ = world.draw_top_view(1000, 1000)
-    img.save(__data__ + "routes-img/training-%s.png" % agent_name, "PNG")
-    img.show(title="Training route")
 
     agent = Agent(condition=condition, live_sky=update_sky, name=agent_name)
     agent.set_world(world)
-    agent.dx = step / world.ratio2meters
+    print agent.homing_routes[0]
+
+    img, _ = agent.world.draw_top_view(1000, 1000)
+    img.show(title="Training route")
+
     for route in agent.start_learning_walk(visualise="panorama"):
         print "Learned route:", route
         if route is not None:
-            save_route(route, "learned-%d-%d-%s" % (route.nant, route.nroute, agent_name))
+            save_route(route, "learned-%d-%d-%s" % (route.agent_no, route.route_no, agent_name))
 
     route = agent.start_homing(visualise="top")
     print route
     if route is not None:
-        save_route(route, "homing-%d-%d-%s" % (route.nant, route.nroute, agent_name))
+        save_route(route, "homing-%d-%d-%s" % (route.agent_no, route.route_no, agent_name))
 
-    del world.routes[:]
-    world.routes.append(route)
-    img, _ = world.draw_top_view(1000, 1000)
-    img.save(__data__ + "routes-img/testing-%s.png" % agent_name, "PNG")
+    if sky_type not in tests.keys():
+        tests[sky_type] = []
+    tests[sky_type].append({
+        "date": date.split("_")[0],
+        "time": date.split("_")[1],
+        "step": int(step * 100)
+    })
+    with open(enpath, 'wb') as f:
+        yaml.safe_dump(tests, f, default_flow_style=False, allow_unicode=False)
+
+    agent.world.routes.append(route)
+    img, _ = agent.world.draw_top_view(1000, 1000)
+    img.save(__data__ + "routes-img/%s.png" % agent_name, "PNG")
     img.show(title="Testing route")

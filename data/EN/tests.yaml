@@ -1,0 +1,22 @@
+fixed:
+- date: '2017-10-26'
+  step: 10
+  time: 11-24
+- date: '2017-10-26'
+  step: 10
+  time: 15-53
+fixed-no-pol:
+- date: '2017-10-26'
+  step: 10
+  time: 17-11
+live:
+- date: '2017-10-26'
+  step: 10
+  time: 12-51
+- date: '2017-10-26'
+  step: 10
+  time: 14-18
+uniform:
+- date: '2017-10-25'
+  step: 10
+  time: 23-45
