@@ -136,7 +136,8 @@ class World(object):
 
         return image, draw
 
-    def draw_panoramic_view(self, x=None, y=None, z=None, r=0, width=None, length=None, height=None, update_sky=True):
+    def draw_panoramic_view(self, x=None, y=None, z=None, r=0, width=None, length=None, height=None,
+                            include_ground=1., include_sky=1., update_sky=True):
         """
         Draws a panoramic view of the world
 
@@ -154,6 +155,10 @@ class World(object):
         :type length: int
         :param height: the height of the world
         :type height: int
+        :param include_ground: the percentage of the ground to include in the image
+        :type include_ground: float
+        :param include_sky: the percentage of the sky to include in the image
+        :type include_sky: float
         :param update_sky: flag that specifies if we want to update the sky
         :type update_sky: bool
         :return: an image showing the 360 degrees view of the agent
@@ -173,18 +178,22 @@ class World(object):
         if z is None:
             z = height / 2. + .06 * height
 
+        # calculate the number of pixels allocated to the sky (counting from the top border)
+        Z = (include_sky + include_ground) / 2
+        horizon = int(height * include_sky / (2 * Z))
+
         # create ommatidia positions with respect to the resolution
         # (this is for the sky drawing on the panoramic images)
-        thetas = np.linspace(-np.pi, np.pi, width, endpoint=False)
-        phis = np.linspace(np.pi/2, 0, height / 2, endpoint=False)
-        thetas, phis = np.meshgrid(phis, thetas)
+        thetas = np.linspace(np.pi/2 * include_sky, 0, horizon, endpoint=False)
+        phis = np.linspace(-np.pi, np.pi, width, endpoint=False)
+        thetas, phis = np.meshgrid(thetas, phis)
         ommatidia = np.array([thetas.flatten(), phis.flatten()]).T
 
         image = Image.new("RGB", (width, height), GROUND_COLOUR)
         draw = ImageDraw.Draw(image)
 
         if self.uniform_sky:
-            draw.rectangle((0, 0, width, height/2), fill=SKY_COLOUR)
+            draw.rectangle((0, 0, width, horizon), fill=SKY_COLOUR)
         else:
             # create a compound eye model for the sky pixels
             self.eye = CompoundEye(ommatidia)
@@ -197,24 +206,30 @@ class World(object):
 
             pix = image.load()
             for i, c in enumerate(self.eye.L):
-                pix[i // (height / 2), i % (height / 2)] = tuple(np.int32(255 * c))
+                pix[i // horizon, i % horizon] = tuple(np.int32(255 * c))
 
+        # rotation matrix of the POV orientation
         R = np.array([
             [np.cos(r), -np.sin(r), 0],
             [np.sin(r), np.cos(r), 0],
             [0, 0, 1]
         ])
         thetas, phis, rhos = [], [], []
+
+        # transform position for meters to pixel-space
         pos = np.array([x, y, z]) / self.ratio2meters
-        pos *= np.array([width, length, height])
+        pos *= np.array([width, length, height / Z])
         for p in self.polygons.scale(*((self.ratio2meters,) * 3)):
-            pp = p * [width, length, height]
+            # transform polygons' points from meters to pixels
+            pp = p * [width, length, height / Z]
+            # and then into spherical coordinates
             theta, phi, rho = vec2sph((pp.xyz - pos).dot(R))
             thetas.append(theta)
             phis.append(phi)
             rhos.append(rho)
 
-        thetas = height * ((np.array(thetas) % np.pi) / np.pi)
+        # transform spherical elevation to pixel height
+        thetas = (height / Z) * (((np.array(thetas) % np.pi) / np.pi) - (1 - include_sky) / 2.)
         phis = width * ((np.pi + np.array(phis)) % (2 * np.pi)) / (2 * np.pi)
         rhos = la.norm(np.array(rhos), axis=-1)
         ind = np.argsort(rhos)[::-1]

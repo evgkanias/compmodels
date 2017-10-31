@@ -16,14 +16,15 @@ KC_THRESHOLD = params['kc-threshold']
 
 class Willshaw(object):
 
-    def __init__(self, gain=GAIN, learning_rate=LEARNING_RATE, tau=KC_THRESHOLD, dtype=np.float32):
+    def __init__(self, gain=GAIN, learning_rate=LEARNING_RATE, tau=KC_THRESHOLD, nb_channels=1, dtype=np.float32):
         self.dtype = dtype
         self.learning_rate = learning_rate
         self.gain = gain
         self._tau = tau
+        self.nb_channels = nb_channels
 
-        self.nb_pn = params['mushroom-body']['PN']
-        self.nb_kc = params['mushroom-body']['KC']
+        self.nb_pn = params['mushroom-body']['PN'] * nb_channels
+        self.nb_kc = params['mushroom-body']['KC'] * nb_channels
         self.nb_en = params['mushroom-body']['EN']
 
         self.w_pn2kc = generate_pn2kc_weights(self.nb_pn, self.nb_kc, dtype=self.dtype)
@@ -46,9 +47,6 @@ class Willshaw(object):
 
     def __call__(self, *args, **kwargs):
         pn, kc, en = self._fprop(args[0])
-        # print "PN", pn.max()
-        # print "KC", kc.sum()
-        # print "EN", en.sum()
         if self.__update:
             self._update(kc)
         return en

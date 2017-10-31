@@ -58,9 +58,6 @@ live-no-pol:
 - date: '2017-10-27'
   step: 10
   time: 09-43
-- date: '2017-10-27'
-  step: 10
-  time: 17-16
 - date: '2017-10-28'
   step: 10
   time: 11-12
@@ -74,9 +71,6 @@ live-no-pol-rgb:
 - date: '2017-10-27'
   step: 10
   time: 15-03
-- date: '2017-10-28'
-  step: 10
-  time: 17-29
 - date: '2017-10-29'
   step: 10
   time: 10-07
