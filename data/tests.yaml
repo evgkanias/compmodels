@@ -48,9 +48,6 @@ live:
 - date: '2017-10-26'
   step: 10
   time: 14-18
-- date: '2017-10-28'
-  step: 10
-  time: 15-37
 - date: '2017-10-31'
   step: 10
   time: 13-13
@@ -84,15 +81,9 @@ live-rgb:
 - date: '2017-10-27'
   step: 10
   time: 11-39
-- date: '2017-10-28'
-  step: 10
-  time: 16-36
 - date: '2017-10-29'
   step: 10
   time: 11-13
-- date: '2017-10-31'
-  step: 10
-  time: 14-51
 uniform:
 - date: '2017-10-25'
   step: 10
