@@ -31,9 +31,13 @@ class Willshaw(object):
         self.w_kc2en = np.ones((self.nb_kc, self.nb_en), dtype=self.dtype)
         self.params = [self.w_pn2kc, self.w_kc2en]
 
-        self.f_pn = lambda x: np.maximum(x.astype(dtype) / x.max(), 0)
+        self.f_pn = lambda x: np.maximum(dtype(x) / dtype(x.max()), 0)
         self.f_kc = lambda x: np.float32(x > tau)
         self.f_en = lambda x: np.maximum(x, 0)
+
+        self.pn = np.zeros(self.nb_pn)
+        self.kc = np.zeros(self.nb_kc)
+        self.en = np.zeros(self.nb_en)
 
         self.__update = False
 
@@ -46,10 +50,10 @@ class Willshaw(object):
         self.__update = value
 
     def __call__(self, *args, **kwargs):
-        pn, kc, en = self._fprop(args[0])
+        self.pn, self.kc, self.en = self._fprop(args[0])
         if self.__update:
-            self._update(kc)
-        return en
+            self._update(self.kc)
+        return self.en
 
     def _fprop(self, pn):
         a_pn = self.f_pn(pn)

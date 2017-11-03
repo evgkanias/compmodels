@@ -66,11 +66,23 @@ class Visualiser(object):
             self.__caption = caption
             self.update_caption()
 
-    def update_thumb(self, img, caption=None):
+    def update_thumb(self, img, pn=None, pn_mode="RGB", caption=None):
+        """
+
+        :param img:
+        :type img: Image.Image
+        :param pn:
+        :type pn: np.ndarray
+        :param pn_mode:
+        :type pn_mode: basestring
+        :param caption:
+        :type caption: basestring
+        :return:
+        """
         if self.__mode == "panorama":
             return
 
-        pn_img = img.resize((200, 100))
+        pn_img = img.resize((self.thumb_width, self.thumb_height))
         self.screen.blit(
             pygame.image.fromstring(pn_img.tobytes("raw", "RGB"), pn_img.size, "RGB"),
             (self.width + self.sidebar_pad, 1 * (self.thumb_height + self.sidebar_pad))
@@ -88,6 +100,35 @@ class Visualiser(object):
             pygame.image.fromstring(pn_blu.convert("RGB").tobytes("raw", "RGB"), pn_blu.size, "RGB"),
             (self.width + self.sidebar_pad, 4 * (self.thumb_height + self.sidebar_pad))
         )
+        if pn is not None:
+            pn_act = Image.new("RGB", (10, 36))
+
+            if pn.size == 360:
+                pn_act = Image.fromarray(np.int8(pn * 255).reshape((10, 36)), "L").convert("RGB")
+            elif pn.size == 360 * 3:
+                pn_act = Image.fromarray(np.int8(pn * 255).reshape((10, 36, 3)), "RGB")
+            pn_act = pn_act.resize((self.thumb_width, self.thumb_height))
+
+            if pn_mode == "RGB":
+                self.screen.blit(
+                    pygame.image.fromstring(pn_act.tobytes("raw", "RGB"), pn_act.size, "RGB"),
+                    (self.width + self.sidebar_pad, 5 * (self.thumb_height + self.sidebar_pad))
+                )
+            else:
+                pn_red, pn_grn, pn_blu = pn_act.split()
+                self.screen.blit(
+                    pygame.image.fromstring(pn_red.convert("RGB").tobytes("raw", "RGB"), pn_red.size, "RGB"),
+                    (self.width + self.sidebar_pad, 5 * (self.thumb_height + self.sidebar_pad))
+                )
+                self.screen.blit(
+                    pygame.image.fromstring(pn_grn.convert("RGB").tobytes("raw", "RGB"), pn_grn.size, "RGB"),
+                    (self.width + self.sidebar_pad, 6 * (self.thumb_height + self.sidebar_pad))
+                )
+                self.screen.blit(
+                    pygame.image.fromstring(pn_blu.convert("RGB").tobytes("raw", "RGB"), pn_blu.size, "RGB"),
+                    (self.width + self.sidebar_pad, 7 * (self.thumb_height + self.sidebar_pad))
+                )
+
         pygame.display.flip()
         if caption is not None:
             self.__sub_caption = caption
@@ -96,7 +137,7 @@ class Visualiser(object):
     def update_caption(self):
         caption = self.__caption
         if not (self.__sub_caption == ""):
-            caption += "| " + self.__sub_caption
+            caption += " | " + self.__sub_caption
         pygame.display.set_caption(caption)
 
     def is_quit(self):

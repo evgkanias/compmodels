@@ -21,7 +21,7 @@ def get_name(sky_type, j):
     return "%s_%s_s%02d-%s-sky" % (date, time, step, sky_type)
 
 
-sky_type = "fixed"
+sky_type = "fixed-no-pol"
 id = -1
 
 name = get_name(sky_type, id)

@@ -7,9 +7,10 @@ from visualiser import Visualiser
 
 class Agent(object):
     __latest_agent_id__ = 0
+    FOV = (-np.pi/6, 4*np.pi/9)
 
     def __init__(self, init_pos=np.zeros(3), init_rot=np.zeros(2), condition=Hybrid(),
-                 live_sky=True, rgb=False, visualiser=None, name=None):
+                 live_sky=True, rgb=False, fov=(-np.pi/2, np.pi/2), visualiser=None, name=None):
         """
 
         :param init_pos: the initial position
@@ -22,6 +23,8 @@ class Agent(object):
         :type live_sky: bool
         :param rgb: flag to set as input to the network all the channels (otherwise use only green)
         :type rgb: bool
+        :param fov: vertical field of view of the agent (the widest: -pi/2 to pi/2)
+        :type fov: tuple, list, np.ndarray
         :param visualiser:
         :type visualiser: Visualiser
         :param name: a name for the agent
@@ -42,8 +45,10 @@ class Agent(object):
         self.__is_homing = False
         self.dx = 0.  # type: float
         self.condition = condition
-        self.__per_sky = 1.  # .8  # type: float
-        self.__per_ground = 1.  # .3  # type: float
+        # self.__per_ground = 1.  # .3  # type: float
+        # self.__per_sky = 1.  # .8  # type: float
+        self.__per_ground = np.abs(fov[0]) / (np.pi / 2)  # type: float
+        self.__per_sky = np.abs(fov[1]) / (np.pi / 2)  # type: float
 
         Agent.__latest_agent_id__ += 1
         self.id = Agent.__latest_agent_id__
@@ -203,6 +208,7 @@ class Agent(object):
         d_nest = lambda: np.sqrt(np.square(self.pos[:2] - self.nest).sum())
         d_feeder = 0
         counter = 0
+        start_time = datetime.now()
         while d_nest() > 0.1:
             x, y, z = self.pos
             phi = self.rot[1]
@@ -217,11 +223,14 @@ class Agent(object):
                 snaps.append(snap)
                 pn = self.img2pn(snap)
 
-                if self.visualiser is not None:
-                    self.visualiser.update_thumb(snap)
-
                 # make a forward pass from the network
                 en.append(self._net(pn))
+
+                if self.visualiser is not None:
+                    now = datetime.now() - start_time
+                    min = now.seconds // 60
+                    sec = now.seconds % 60
+                    self.visualiser.update_thumb(snap, pn=self._net.pn, pn_mode="L", caption="Elapsed time: %02d:%02d" % (min, sec))
 
             if self.visualiser is not None and self.visualiser.is_quit():
                 break
@@ -278,6 +287,7 @@ class Agent(object):
         :return:
         """
         # TODO: make this parametriseable for different pre-processing of the input
+        # print np.array(image).max()
         if self.rgb:
             return np.array(image).flatten()
         else:  # keep only green channel
@@ -287,18 +297,14 @@ class Agent(object):
 if __name__ == "__main__":
     from world import load_world, load_routes
     from datetime import datetime
-    import os
-    import yaml
+    from utils import *
 
-    # get path of the script
-    cpath = os.path.dirname(os.path.abspath(__file__)) + '/'
-    logpath = cpath + "../data/tests.yaml"
-
-    date = datetime.now().strftime("%Y-%m-%d_%H-%M")
-    update_sky = False
+    date = datetime.now()
+    update_sky = True
     uniform_sky = False
-    enable_pol = True
+    enable_pol = False
     rgb = False
+    fov = (-np.pi/2, np.pi/2)
     sky_type = "uniform" if uniform_sky else "live" if update_sky else "fixed"
     if not enable_pol:
         sky_type += "-no-pol"
@@ -307,7 +313,7 @@ if __name__ == "__main__":
     step = .1       # 10 cm
     tau_phi = np.pi    # 60 deg
     condition = Hybrid(tau_x=step, tau_phi=tau_phi)
-    agent_name = "%s_s%02d-%s-sky" % (date, step * 100, sky_type)
+    agent_name = create_agent_name(date, sky_type, step, fov[0], fov[1])
     print agent_name
 
     world = load_world()
@@ -316,7 +322,7 @@ if __name__ == "__main__":
     routes = load_routes()
     world.add_route(routes[0])
 
-    agent = Agent(condition=condition, live_sky=update_sky, visualiser=Visualiser(), rgb=rgb, name=agent_name)
+    agent = Agent(condition=condition, live_sky=update_sky, visualiser=Visualiser(), rgb=rgb, fov=fov, name=agent_name)
     agent.set_world(world)
     print agent.homing_routes[0]
 
@@ -332,22 +338,7 @@ if __name__ == "__main__":
     if route is not None:
         save_route(route, "homing-%d-%d-%s" % (route.agent_no, route.route_no, agent_name))
 
-    # load tests
-    with open(logpath, 'rb') as f:
-        tests = yaml.safe_load(f)
-
-    if sky_type not in tests.keys():
-        tests[sky_type] = []
-    tests[sky_type].append({
-        "date": date.split("_")[0],
-        "time": date.split("_")[1],
-        "step": int(step * 100)
-    })
-
-    # save/update tests
-    with open(logpath, 'wb') as f:
-        yaml.safe_dump(tests, f, default_flow_style=False, allow_unicode=False)
-
+    update_tests(sky_type, date, step, gfov=fov[0], sfov=fov[1])
     agent.world.routes.append(route)
     img, _ = agent.world.draw_top_view(1000, 1000)
     img.save(__data__ + "routes-img/%s.png" % agent_name, "PNG")

@@ -1,25 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import os
-import yaml
 
 from world import load_world, load_route
-
-# get path of the script
-cpath = os.path.dirname(os.path.abspath(__file__)) + '/'
-logpath = cpath + "tests.yaml"
-
-# load tests
-with open(logpath, 'rb') as f:
-    tests = yaml.safe_load(f)
-
-
-def get_name(sky_type, j):
-    date = tests[sky_type][j]["date"]
-    time = tests[sky_type][j]["time"]
-    step = tests[sky_type][j]["step"]  # cm
-
-    return "%s_%s_s%02d-%s-sky" % (date, time, step, sky_type)
+from agent.utils import *
 
 
 # sky_type = "fixed"
@@ -29,11 +12,11 @@ if 'sky_type' in locals():
 
     w = load_world()
     labels = []
-    name = get_name(sky_type, 0)
+    name = get_agent_name(sky_type, 0)
     r = load_route("learned-1-1-%s" % name)
     w.add_route(r)
     for j in xrange(len(tests[sky_type])):
-        name = get_name(sky_type, j)
+        name = get_agent_name(sky_type, j)
         labels.append(name.split("_")[0] + " " + name.split("_")[1])
         r = load_route("homing-1-2-%s" % name)
         r.route_no = j+2
@@ -54,13 +37,18 @@ else:
     sky_types = ["uniform", "fixed", "fixed-no-pol", "live", "live-no-pol",
                  "uniform-rgb", "fixed-rgb", "fixed-no-pol-rgb", "live-rgb", "live-no-pol-rgb"]
     for i, sky_type in enumerate(sky_types):
+        print i, sky_type
         w = load_world()
-        name = get_name(sky_type, 0)
+        name = get_agent_name(sky_type, 0)
         r = load_route("learned-1-1-%s" % name)
         w.add_route(r)
         labels = []
         for j in xrange(len(tests[sky_type])):
-            name = get_name(sky_type, j)
+            name = get_agent_name(sky_type, j)
+            if "fov" in tests[sky_type][j].keys():
+                fov = tests[sky_type][j]["fov"]
+                if fov[0] > -90 and fov[1] < 90:
+                    continue
             labels.append(name.split("_")[0] + " " + name.split("_")[1])
             r = load_route("homing-1-2-%s" % name)
             r.route_no = j+2
@@ -73,7 +61,7 @@ else:
         plt.yticks([])
 
         for j, label in enumerate(labels):
-            x = 300 * (j // 5) + 15
+            x = 300 * (j // 5) / 2 + 15
             y = 300 + 15 * (j - (5 * (j // 5)) + 1)
             plt.text(x, y, label)
     plt.tight_layout(pad=5)
