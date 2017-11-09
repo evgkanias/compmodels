@@ -1,8 +1,9 @@
 import numpy as np
 from PIL import Image, ImageDraw
 from world import Route, World, route_like, Hybrid, save_route, __data__
-from net import Willshaw
+from net import Willshaw, RNG
 from visualiser import Visualiser
+from world.utils import shifted_datetime
 
 
 class Agent(object):
@@ -28,7 +29,7 @@ class Agent(object):
         :param visualiser:
         :type visualiser: Visualiser
         :param name: a name for the agent
-        :type name: basestring
+        :type name: string
         """
         self.pos = init_pos
         self.rot = init_rot
@@ -171,9 +172,15 @@ class Agent(object):
                 elif self.visualiser.mode == "panorama":
                     img_func = self.world_snapshot
                 if self.visualiser is not None:
-                    self.visualiser.update_main(img_func,
-                                                caption="%s | C: % 2d EN: % 2d Distance: %.2f D_phi: % 2.2f" % (
-                                                    self.name, counter, en, distance, np.rad2deg(d_phi)))
+                    names = self.name.split('_')
+                    names[0] = self.world.date.strftime(datestr)
+                    names.append(counter)
+                    names.append(en)
+                    names.append(distance)
+                    names.append(np.rad2deg(d_phi))
+
+                    capt_format = "%s " * (len(names) - 4) + "| C: % 2d EN: % 2d Distance: %.2f D_phi: % 2.2f"
+                    self.visualiser.update_main(img_func, caption=capt_format % tuple(names))
 
                 # update last orientation
                 pphi = phi
@@ -230,7 +237,8 @@ class Agent(object):
                     now = datetime.now() - start_time
                     min = now.seconds // 60
                     sec = now.seconds % 60
-                    self.visualiser.update_thumb(snap, pn=self._net.pn, pn_mode="L", caption="Elapsed time: %02d:%02d" % (min, sec))
+                    self.visualiser.update_thumb(snap, pn=self._net.pn, pn_mode="L",
+                                                 caption="Elapsed time: %02d:%02d" % (min, sec))
 
             if self.visualiser is not None and self.visualiser.is_quit():
                 break
@@ -259,10 +267,16 @@ class Agent(object):
             elif self.visualiser.mode == "panorama":
                 img_func = self.world_snapshot
             if self.visualiser is not None:
-                self.visualiser.update_main(img_func, en=en, thumbs=snaps,
-                                            caption="%s | C: % 2d, EN: % 3d (%.2f), D: %.2f, D_nest: %.2f" % (
-                                                self.name, counter, 2 * (en.argmin() - 30), en.min(), d_feeder,
-                                                d_nest()))
+                names = self.name.split('_')
+                names[0] = self.world.date.strftime(datestr)
+                names.append(counter)
+                names.append(2 * (en.argmin() - 30))
+                names.append(en.min())
+                names.append(d_feeder)
+                names.append(d_nest())
+
+                capt_format = "%s " * (len(names) - 5) + "| C: % 2d, EN: % 3d (%.2f), D: %.2f, D_nest: %.2f"
+                self.visualiser.update_main(img_func, en=en, thumbs=snaps, caption=capt_format % tuple(names))
 
             if d_feeder > 15:
                 break
@@ -291,7 +305,7 @@ class Agent(object):
         if self.rgb:
             return np.array(image).flatten()
         else:  # keep only green channel
-            return np.array(image).reshape((-1, 3))[:, 1].flatten()
+            return np.array(image).reshape((-1, 3))[:, 0].flatten()
 
 
 if __name__ == "__main__":
@@ -299,47 +313,60 @@ if __name__ == "__main__":
     from datetime import datetime
     from utils import *
 
-    date = datetime.now()
-    update_sky = True
-    uniform_sky = False
-    enable_pol = False
-    rgb = False
-    fov = (-np.pi/2, np.pi/2)
-    sky_type = "uniform" if uniform_sky else "live" if update_sky else "fixed"
-    if not enable_pol:
-        sky_type += "-no-pol"
-    if rgb:
-        sky_type += "-rgb"
-    step = .1       # 10 cm
-    tau_phi = np.pi    # 60 deg
-    condition = Hybrid(tau_x=step, tau_phi=tau_phi)
-    agent_name = create_agent_name(date, sky_type, step, fov[0], fov[1])
-    print agent_name
+    exps = [
+        # (True, False, True, False, None),     # live
+        (True, False, True, True, None),      # live-rgb
+        (True, False, False, False, None),    # live-no-pol
+        (True, False, False, True, None),     # live-no-pol-rgb
+        (False, False, True, False, None),    # fixed
+        (False, False, True, True, None),     # fixed-rgb
+        (False, False, False, False, None),    # fixed-no-pol
+        (False, False, False, True, None),     # fixed-no-pol-rgb
+        (False, True, True, False, np.random.RandomState(2020)),  # uniform
+        (False, True, True, True, np.random.RandomState(2020)),  # uniform-rgb
+    ]
 
-    world = load_world()
-    world.enable_pol_filters(enable_pol)
-    world.uniform_sky = uniform_sky
-    routes = load_routes()
-    world.add_route(routes[0])
+    for update_sky, uniform_sky, enable_pol, rgb, rng in exps:
+        date = shifted_datetime()
+        if rng is None:
+            rng = np.random.RandomState(2018)
+        RND = rng
+        fov = (-np.pi/6, 4*np.pi/9)
+        sky_type = "uniform" if uniform_sky else "live" if update_sky else "fixed"
+        if not enable_pol and "uniform" not in sky_type:
+            sky_type += "-no-pol"
+        if rgb:
+            sky_type += "-rgb"
+        step = .1       # 10 cm
+        tau_phi = np.pi    # 60 deg
+        condition = Hybrid(tau_x=step, tau_phi=tau_phi)
+        agent_name = create_agent_name(date, sky_type, step, fov[0], fov[1])
+        print agent_name
 
-    agent = Agent(condition=condition, live_sky=update_sky, visualiser=Visualiser(), rgb=rgb, fov=fov, name=agent_name)
-    agent.set_world(world)
-    print agent.homing_routes[0]
+        world = load_world()
+        world.enable_pol_filters(enable_pol)
+        world.uniform_sky = uniform_sky
+        routes = load_routes()
+        world.add_route(routes[0])
 
-    agent.visualiser.set_mode("panorama")
-    for route in agent.start_learning_walk():
-        print "Learned route:", route
+        agent = Agent(condition=condition, live_sky=update_sky, visualiser=Visualiser(), rgb=rgb,
+                      fov=fov, name=agent_name)
+        agent.set_world(world)
+        print agent.homing_routes[0]
+
+        agent.visualiser.set_mode("panorama")
+        for route in agent.start_learning_walk():
+            print "Learned route:", route
+
+        agent.visualiser.set_mode("top")
+        route = agent.start_homing()
+        print route
         if route is not None:
-            save_route(route, "learned-%d-%d-%s" % (route.agent_no, route.route_no, agent_name))
+            save_route(route, agent_name)
 
-    agent.visualiser.set_mode("top")
-    route = agent.start_homing()
-    print route
-    if route is not None:
-        save_route(route, "homing-%d-%d-%s" % (route.agent_no, route.route_no, agent_name))
-
-    update_tests(sky_type, date, step, gfov=fov[0], sfov=fov[1])
-    agent.world.routes.append(route)
-    img, _ = agent.world.draw_top_view(1000, 1000)
-    img.save(__data__ + "routes-img/%s.png" % agent_name, "PNG")
-    # img.show(title="Testing route")
+        if not update_tests(sky_type, date, step, gfov=fov[0], sfov=fov[1]):
+            break
+        agent.world.routes.append(route)
+        img, _ = agent.world.draw_top_view(1000, 1000)
+        img.save(__data__ + "routes-img/%s.png" % agent_name, "PNG")
+        # img.show(title="Testing route")

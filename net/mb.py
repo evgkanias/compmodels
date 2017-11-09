@@ -13,15 +13,34 @@ GAIN = params['gain']
 LEARNING_RATE = params['learning-rate']
 KC_THRESHOLD = params['kc-threshold']
 
+RNG = np.random.RandomState(2018)
+
 
 class Willshaw(object):
 
-    def __init__(self, gain=GAIN, learning_rate=LEARNING_RATE, tau=KC_THRESHOLD, nb_channels=1, dtype=np.float32):
+    def __init__(self, gain=GAIN, learning_rate=LEARNING_RATE, tau=KC_THRESHOLD, nb_channels=1,
+                 rng=RNG, dtype=np.float32):
+        """
+
+        :param gain:
+        :type gain: float, int
+        :param learning_rate: the rate with which the weights are changing
+        :type learning_rate: float
+        :param tau: the threshold after witch a KC is activated
+        :type tau: float
+        :param nb_channels: number of colour channels that can be interpreted
+        :type nb_channels: int
+        :param rng: the random state generator
+        :type rng: np.random.RandomState
+        :param dtype: the type of the values in the network
+        :type dtype: Type[np.dtype]
+        """
         self.dtype = dtype
         self.learning_rate = learning_rate
         self.gain = gain
         self._tau = tau
         self.nb_channels = nb_channels
+        self.rng = rng
 
         self.nb_pn = params['mushroom-body']['PN'] * nb_channels
         self.nb_kc = params['mushroom-body']['KC'] * nb_channels
@@ -31,8 +50,9 @@ class Willshaw(object):
         self.w_kc2en = np.ones((self.nb_kc, self.nb_en), dtype=self.dtype)
         self.params = [self.w_pn2kc, self.w_kc2en]
 
-        self.f_pn = lambda x: np.maximum(dtype(x) / dtype(x.max()), 0)
-        self.f_kc = lambda x: np.float32(x > tau)
+        self.f_pn = lambda x: np.maximum(dtype(x) / dtype(255), 0)
+        # self.f_pn = lambda x: np.maximum(dtype(dtype(x) / dtype(255) > .5), 0)
+        self.f_kc = lambda x: dtype(x > tau)
         self.f_en = lambda x: np.maximum(x, 0)
 
         self.pn = np.zeros(self.nb_pn)
@@ -83,20 +103,25 @@ class Willshaw(object):
 
 
 def generate_pn2kc_weights(nb_pn, nb_kc, min_pn=5, max_pn=21, aff_pn2kc=None, nb_trials=100000, baseline=25000,
-                           dtype=np.float32):
+                           rnd=RNG, dtype=np.float32):
     """
-    Create the synaptic weights among the Projection Neuros (PNs) and the Kenyon Cells (KCs).
+    Create the synaptic weights among the Projection Neurons (PNs) and the Kenyon Cells (KCs).
     Choose the first sample that has dispersion below the baseline (early stopping), or the
     one with the lower dispersion (in case non of the samples' dispersion is less than the
     baseline).
 
     :param nb_pn:       the number of the Projection Neurons (PNs)
     :param nb_kc:       the number of the Kenyon Cells (KCs)
+    :param min_pn:
+    :param max_pn:
     :param aff_pn2kc:   the number of the PNs connected to every KC (usually 28-34)
                         if the number is less than or equal to zero it creates random values
                         for each KC in range [28, 34]
     :param nb_trials:   the number of trials in order to find a acceptable sample
     :param baseline:    distance between max-min number of projections per PN
+    :param rnd:
+    :type rnd: np.random.RandomState
+    :param dtype:
     """
 
     dispersion = np.zeros(nb_trials)
@@ -106,13 +131,13 @@ def generate_pn2kc_weights(nb_pn, nb_kc, min_pn=5, max_pn=21, aff_pn2kc=None, nb
         pn2kc = np.zeros((nb_pn, nb_kc), dtype=dtype)
 
         if aff_pn2kc is None or aff_pn2kc <= 0:
-            vaff_pn2kc = np.random.randint(min_pn, max_pn + 1, size=nb_pn)
+            vaff_pn2kc = rnd.randint(min_pn, max_pn + 1, size=nb_pn)
         else:
             vaff_pn2kc = np.ones(nb_pn) * aff_pn2kc
 
         # go through every kenyon cell and select a nb_pn PNs to make them afferent
         for i in range(nb_pn):
-            pn_selector = np.random.permutation(nb_kc)
+            pn_selector = rnd.permutation(nb_kc)
             pn2kc[i, pn_selector[:vaff_pn2kc[i]]] = 1
 
         # This selections mechanism can be used to restrict the distribution of random connections
@@ -135,16 +160,35 @@ def generate_pn2kc_weights(nb_pn, nb_kc, min_pn=5, max_pn=21, aff_pn2kc=None, nb
 
 if __name__ == "__main__":
     from world import load_world, load_routes
+    from agent.visualiser import Visualiser
+    from world.conditions import Hybrid
 
     world = load_world()
     routes = load_routes()
+    routes[0].condition = Hybrid(tau_x=.1, tau_phi=np.pi)
     world.add_route(routes[0])
 
-    nn = Willshaw()
+    nn = Willshaw(nb_channels=3)
     nn.update = True
+    vis = Visualiser(mode="panorama")
+    vis.reset()
 
-    tau_step = 5
-    for xyz, phi in zip(world.routes[-1].xyz[::tau_step], world.routes[-1].phi[::tau_step]):
-        img, _ = world.draw_panoramic_view(xyz[0], xyz[1], xyz[2], phi)
+    x, y, z = np.zeros(3)
+    phi = 0.
+
+    def world_snapshot(width=None, height=None):
+        global x, y, z, phi
+        return world.draw_panoramic_view(x, y, z, phi, update_sky=False, include_ground=.3, include_sky=1.,
+                                         width=width, length=width, height=height)
+
+    for x, y, z, phi in world.routes[-1]:
+
+        if vis.is_quit():
+            print "QUIT!"
+            break
+
+        img, _ = world.draw_panoramic_view(x, y, z, phi)
         inp = np.array(img).reshape((-1, 3))
-        en = nn(inp.max(axis=-1))
+        en = nn(inp.flatten())
+
+        vis.update_main(world_snapshot, caption="PN: %3d, KC: %3d, EN: %3d" % (nn.pn.sum(), nn.kc.sum(), en.sum()))

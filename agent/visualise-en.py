@@ -7,7 +7,7 @@ from world import load_world, load_route
 
 # get path of the script
 cpath = os.path.dirname(os.path.abspath(__file__)) + '/'
-logpath = cpath + "tests.yaml"
+logpath = cpath + "../data/tests.yaml"
 
 # load tests
 with open(logpath, 'rb') as f:
@@ -24,13 +24,13 @@ time = tests[sky_type][test_no-1]["time"]
 step = tests[sky_type][test_no-1]["step"]  # cm
 
 name = "%s_%s_s%02d-%s-sky" % (date, time, step, sky_type)
-en = np.load("EN/%s.npz" % name)["en"].T
+en = np.load("../data/EN/%s.npz" % name)["en"].T
 min_en = np.argmin(en, axis=0)
 
 w = load_world()
-r = load_route("learned-1-1-%s" % name)
+r = load_route("learned")
 w.add_route(r)
-r = load_route("homing-1-2-%s" % name)
+r = load_route(name)
 w.add_route(r)
 img, _ = w.draw_top_view(width=500, length=500)
 

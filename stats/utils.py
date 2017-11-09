@@ -26,27 +26,11 @@ def distance_from_route(route, point):
 
 
 if __name__ == "__main__":
-    import os
-    import yaml
-
     from world import load_route
     import matplotlib.pyplot as plt
+    from agent.utils import *
 
-    # get path of the script
-    cpath = os.path.dirname(os.path.abspath(__file__)) + '/'
-    logpath = cpath + "../data/tests.yaml"
-
-    # load tests
-    with open(logpath, 'rb') as f:
-        tests = yaml.safe_load(f)
-
-
-    def get_name(sky_type, j):
-        date = tests[sky_type][j]["date"]
-        time = tests[sky_type][j]["time"]
-        step = tests[sky_type][j]["step"]  # cm
-
-        return "%s_%s_s%02d-%s-sky" % (date, time, step, sky_type)
+    fov = True
 
     nb_columns = 5
     nb_rows = 2
@@ -54,22 +38,24 @@ if __name__ == "__main__":
     skies = ["uniform", "fixed", "fixed-no-pol", "live", "live-no-pol",
              "uniform-rgb", "fixed-rgb", "fixed-no-pol-rgb", "live-rgb", "live-no-pol-rgb"]
 
+    tsts = fov_tests if fov else tests
+
     plt.figure(figsize=(30, 20))
     for i, sky in enumerate(skies):
-        nb_trials = len(tests[sky])
+        nb_trials = len(tsts[sky])
         plt.subplot(nb_rows, nb_columns, i + 1)
         for id in xrange(nb_trials):
-            name = get_name(sky, id)
-            r = load_route("homing-1-2-%s" % name)
+            name = get_agent_name(sky, id, fov)
+            r = load_route("%s" % name)
             h_xyz = np.array([r.x, r.y, r.z]).T
 
-            r = load_route("learned-1-1-%s" % name)
+            r = load_route("learned")
 
             dist = []
             for p in h_xyz:
                 dist.append(distance_from_route(r, p))
             dist = np.array(dist)
-            plt.plot(dist, label="%s %s" % (tests[sky][id]["date"], tests[sky][id]["time"]))
+            plt.plot(dist, label="%s %s" % (tsts[sky][id]["date"], tsts[sky][id]["time"]))
         plt.title(sky)
         plt.xlim([0, 100])
         plt.ylim([0, 5])

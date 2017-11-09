@@ -1,9 +1,9 @@
 import numpy as np
 import numpy.linalg as la
-from datetime import datetime
+from datetime import timedelta, datetime
 from PIL import ImageDraw, Image
 from colorsys import hsv_to_rgb
-from utils import vec2sph
+from utils import vec2sph, shifted_datetime
 from ephem import Observer
 from sky import get_seville_observer, ChromaticitySkyModel
 from compoundeye import CompoundEye
@@ -24,7 +24,7 @@ class World(object):
     """
 
     def __init__(self, observer=None, polygons=None, width=WIDTH, length=LENGTH, height=HEIGHT,
-                 uniform_sky=False, enable_pol_filters=True):
+                 uniform_sky=False, enable_pol_filters=True, day_shift=153, daylight_only=True):
         """
         Creates a world.
 
@@ -42,6 +42,10 @@ class World(object):
         :type uniform_sky: bool
         :param enable_pol_filters: flag to switch on/off the POL filters of the eyes
         :type enable_pol_filters: bool
+        :param day_shift: the number of days to roll back
+        :type day_shift: int
+        :param daylight_only: bound the time in between 7.30 am and 7.30 pm
+        :type daylight_only: bool
         """
         # normalise world
         xmax = np.array([polygons.x.max(), polygons.y.max(), polygons.z.max()]).max()
@@ -49,7 +53,10 @@ class World(object):
         # default observer is in Seville (where the data come from)
         if observer is None:
             observer = get_seville_observer()
-        observer.date = datetime.now()
+        self.day_shift = day_shift
+        self.daylight_only = daylight_only
+        self.__shifted = False
+        observer.date = self.datetime_now(init=True)
 
         # create and generate a sky instance
         self.sky = ChromaticitySkyModel(observer=observer, nside=1)
@@ -71,6 +78,10 @@ class World(object):
     @property
     def ratio2meters(self):
         return self.__normalise_factor  # type: float
+
+    @property
+    def date(self):
+        return self.sky.obs.date.datetime()  # type: datetime
 
     def enable_pol_filters(self, value):
         """
@@ -189,17 +200,21 @@ class World(object):
         thetas, phis = np.meshgrid(thetas, phis)
         ommatidia = np.array([thetas.flatten(), phis.flatten()]).T
 
-        image = Image.new("RGB", (width, height), GROUND_COLOUR)
+        image = Image.new("RGB", (width, height), rgb2gbuv(GROUND_COLOUR))
         draw = ImageDraw.Draw(image)
 
         if self.uniform_sky:
-            draw.rectangle((0, 0, width, horizon), fill=SKY_COLOUR)
+            draw.rectangle((0, 0, width, horizon), fill=rgb2gbuv(SKY_COLOUR, 255))
         else:
             # create a compound eye model for the sky pixels
+            # self.eye = CompoundEye(ommatidia,
+            #                        central_microvili=(0., 0.),
+            #                        noise_factor=.1,
+            #                        activate_dop_sensitivity=True)
             self.eye = CompoundEye(ommatidia)
             self.eye.activate_pol_filters(self.__pol_filters)
             if update_sky:
-                self.sky.obs.date = datetime.now()
+                self.sky.obs.date = self.datetime_now()
                 self.sky.generate()
             self.eye.facing_direction = -r
             self.eye.set_sky(self.sky)
@@ -236,16 +251,32 @@ class World(object):
         for theta, phi, c in zip(thetas[ind], phis[ind], self.polygons.c_int32[ind]):
             if phi.max() - phi.min() < width/2:  # normal conditions
                 p = tuple((b, a) for a, b in zip(theta, phi))
-                draw.polygon(p, fill=tuple(c))
+                draw.polygon(p, fill=rgb2gbuv(c))
             else:   # in case that the object is on the edge of the screen
                 phi0, phi1 = phi.copy(), phi.copy()
                 phi0[phi < width/2] += width
                 phi1[phi >= width/2] -= width
                 p = tuple((b, a) for a, b in zip(theta, phi0))
-                draw.polygon(p, fill=tuple(c))
+                draw.polygon(p, fill=rgb2gbuv(c))
                 p = tuple((b, a) for a, b in zip(theta, phi1))
-                draw.polygon(p, fill=tuple(c))
+                draw.polygon(p, fill=rgb2gbuv(c))
 
             # draw visible polygons
 
         return image, draw
+
+    def datetime_now(self, init=False):
+        date = shifted_datetime(self.day_shift, lower_limit=None, upper_limit=None)
+        if init:
+            date_shift = shifted_datetime(self.day_shift, lower_limit=7.5, upper_limit=19.5)
+            if date_shift.day != date.day:
+                self.__shifted = True
+
+        if self.__shifted:
+            date += timedelta(hours=12)
+
+        return date
+
+
+def rgb2gbuv(rgb, uv=0):
+    return tuple((rgb[1], rgb[2], uv))

@@ -1,5 +1,5 @@
 gain: -20.
-learning-rate: .1
+learning-rate: .2
 kc-threshold: 1.7
 mushroom-body:
   PN: 360
