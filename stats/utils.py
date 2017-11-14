@@ -31,6 +31,7 @@ if __name__ == "__main__":
     from agent.utils import *
 
     fov = True
+    bin = True
 
     nb_columns = 5
     nb_rows = 2
@@ -38,14 +39,23 @@ if __name__ == "__main__":
     skies = ["uniform", "fixed", "fixed-no-pol", "live", "live-no-pol",
              "uniform-rgb", "fixed-rgb", "fixed-no-pol-rgb", "live-rgb", "live-no-pol-rgb"]
 
-    tsts = fov_tests if fov else tests
+    tsts = bin_tests if bin else fov_tests if fov else tests
 
     plt.figure(figsize=(30, 20))
     for i, sky in enumerate(skies):
+        if sky not in tsts.keys():
+            continue
+
         nb_trials = len(tsts[sky])
         plt.subplot(nb_rows, nb_columns, i + 1)
         for id in xrange(nb_trials):
-            name = get_agent_name(sky, id, fov)
+            try:
+                name = get_agent_name(sky, id, fov=fov, bin=bin)
+                print ""
+            except AttributeError, e:
+                print "aboard"
+                continue
+
             r = load_route("%s" % name)
             h_xyz = np.array([r.x, r.y, r.z]).T
 

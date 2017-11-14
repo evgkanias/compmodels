@@ -315,23 +315,25 @@ if __name__ == "__main__":
 
     exps = [
         # (True, False, True, False, None),     # live
-        (True, False, True, True, None),      # live-rgb
-        (True, False, False, False, None),    # live-no-pol
-        (True, False, False, True, None),     # live-no-pol-rgb
+        # (True, False, True, True, None),      # live-rgb
+        # (True, False, False, False, None),    # live-no-pol
+        # (True, False, False, True, None),     # live-no-pol-rgb
+        (False, True, True, False, np.random.RandomState(2018)),  # uniform
+        (False, True, True, True, np.random.RandomState(2018)),  # uniform-rgb
         (False, False, True, False, None),    # fixed
         (False, False, True, True, None),     # fixed-rgb
         (False, False, False, False, None),    # fixed-no-pol
         (False, False, False, True, None),     # fixed-no-pol-rgb
-        (False, True, True, False, np.random.RandomState(2020)),  # uniform
-        (False, True, True, True, np.random.RandomState(2020)),  # uniform-rgb
     ]
+
+    bin = True
 
     for update_sky, uniform_sky, enable_pol, rgb, rng in exps:
         date = shifted_datetime()
         if rng is None:
             rng = np.random.RandomState(2018)
         RND = rng
-        fov = (-np.pi/6, 4*np.pi/9)
+        fov = (-np.pi/6, np.pi/2)
         sky_type = "uniform" if uniform_sky else "live" if update_sky else "fixed"
         if not enable_pol and "uniform" not in sky_type:
             sky_type += "-no-pol"
@@ -364,7 +366,7 @@ if __name__ == "__main__":
         if route is not None:
             save_route(route, agent_name)
 
-        if not update_tests(sky_type, date, step, gfov=fov[0], sfov=fov[1]):
+        if not update_tests(sky_type, date, step, gfov=fov[0], sfov=fov[1], bin=bin):
             break
         agent.world.routes.append(route)
         img, _ = agent.world.draw_top_view(1000, 1000)

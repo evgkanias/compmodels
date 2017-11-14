@@ -207,11 +207,11 @@ class World(object):
             draw.rectangle((0, 0, width, horizon), fill=rgb2gbuv(SKY_COLOUR, 255))
         else:
             # create a compound eye model for the sky pixels
-            # self.eye = CompoundEye(ommatidia,
-            #                        central_microvili=(0., 0.),
-            #                        noise_factor=.1,
-            #                        activate_dop_sensitivity=True)
-            self.eye = CompoundEye(ommatidia)
+            self.eye = CompoundEye(ommatidia,
+                                   central_microvili=(0., 0.),
+                                   noise_factor=.1,
+                                   activate_dop_sensitivity=True)
+            # self.eye = CompoundEye(ommatidia)
             self.eye.activate_pol_filters(self.__pol_filters)
             if update_sky:
                 self.sky.obs.date = self.datetime_now()

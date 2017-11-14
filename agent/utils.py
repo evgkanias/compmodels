@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 __cpath__ = os.path.dirname(os.path.abspath(__file__)) + '/'
 __logpath__ = __cpath__ + "../data/tests.yaml"
 __fovpath__ = __cpath__ + "../data/fov-tests.yaml"
+__binpath__ = __cpath__ + "../data/bin-tests.yaml"
 __enpath__ = __cpath__ + "../data/EN/"
 __rtpath__ = __cpath__ + "../data/routes/"
 __ripath__ = __cpath__ + "../data/routes-img/"
@@ -18,6 +19,8 @@ with open(__logpath__, 'rb') as f:
     tests = yaml.safe_load(f)
 with open(__fovpath__, 'rb') as f:
     fov_tests = yaml.safe_load(f)
+with open(__binpath__, 'rb') as f:
+    bin_tests = yaml.safe_load(f)
 
 
 def create_agent_name(date, sky_type, step=.1, gfov=-np.pi/2, sfov=np.pi/2):
@@ -44,7 +47,7 @@ def create_agent_name(date, sky_type, step=.1, gfov=-np.pi/2, sfov=np.pi/2):
     return agent_name
 
 
-def get_agent_features(sky_type, j=-1, fov=False):
+def get_agent_features(sky_type, j=-1, fov=False, bin=False):
     """
 
     :param sky_type: the sky-type
@@ -53,11 +56,18 @@ def get_agent_features(sky_type, j=-1, fov=False):
     :type j: int
     :return:
     """
-    if (not fov and sky_type not in tests.keys()) or (fov and sky_type not in fov_tests.keys()):
-        raise AttributeError("There is not key named '%s' in the tests records." % sky_type)
-    if fov:
+
+    if bin:
+        if sky_type not in bin_tests.keys():
+            raise AttributeError("There is not key named '%s' in the tests records." % sky_type)
+        test_ = bin_tests[sky_type]
+    elif fov:
+        if sky_type not in fov_tests.keys():
+            raise AttributeError("There is not key named '%s' in the tests records." % sky_type)
         test_ = fov_tests[sky_type]
     else:
+        if sky_type not in tests.keys():
+            raise AttributeError("There is not key named '%s' in the tests records." % sky_type)
         test_ = tests[sky_type]
     if j >= len(test_):
         raise AttributeError("Index %d out of range. List length = %d" % (j, len(test_)))
@@ -78,7 +88,7 @@ def get_agent_features(sky_type, j=-1, fov=False):
     return date, step, gfov, sfov
 
 
-def get_agent_name(sky_type, j, fov=False):
+def get_agent_name(sky_type, j, fov=False, bin=False):
     """
 
     :param sky_type: the sky-type
@@ -87,7 +97,7 @@ def get_agent_name(sky_type, j, fov=False):
     :type j: int
     :return:
     """
-    date, step, gfov, sfov = get_agent_features(sky_type, j, fov)
+    date, step, gfov, sfov = get_agent_features(sky_type, j, fov, bin)
     date_str = date.strftime(datestr)
 
     agent_name = "%s_s%02d-%s-sky" % (date_str, step * 100, sky_type)
@@ -101,7 +111,7 @@ def get_agent_name(sky_type, j, fov=False):
     return agent_name
 
 
-def update_tests(sky_type, date, step, gfov=-np.pi/2, sfov=np.pi/2):
+def update_tests(sky_type, date, step, gfov=-np.pi/2, sfov=np.pi/2, bin=False):
     """
 
     :param sky_type: the sky-type
@@ -116,7 +126,27 @@ def update_tests(sky_type, date, step, gfov=-np.pi/2, sfov=np.pi/2):
     """
 
     date_str = date.strftime("%Y-%m-%d_%H-%M")
-    if np.abs(gfov) < np.pi / 2 or np.abs(sfov) < np.pi / 2:
+    if bin:
+        if sky_type not in bin_tests.keys():
+            bin_tests[sky_type] = []
+
+        bin_tests[sky_type].append({
+            "date": date_str.split("_")[0],
+            "time": date_str.split("_")[1],
+            "step": int(step * 100),
+            "gfov": int(np.abs(np.rad2deg(gfov))),
+            "sfov": int(np.abs(np.rad2deg(sfov)))
+        })
+
+        try:
+            # save/update tests
+            with open(__binpath__, 'wb') as f:
+                yaml.safe_dump(bin_tests, f, default_flow_style=False, allow_unicode=False)
+            return True
+        except Exception, e:
+            print e.message
+            return False
+    elif np.abs(gfov) < np.pi / 2 or np.abs(sfov) < np.pi / 2:
 
         if sky_type not in fov_tests.keys():
             fov_tests[sky_type] = []
@@ -157,15 +187,14 @@ def update_tests(sky_type, date, step, gfov=-np.pi/2, sfov=np.pi/2):
             return False
 
 
-def delete_test(sky_type, j, fov=False):
-    name = get_agent_name(sky_type, j, fov=fov)
+def delete_test(sky_type, j, fov=False, bin=False):
+    name = get_agent_name(sky_type, j, fov=fov, bin=bin)
 
     enname = __enpath__ + name + ".npz"
-    lroute = __rtpath__ + "learned-1-1-" + name + ".npz"
-    hroute = __rtpath__ + "homing-1-2-" + name + ".npz"
+    hroute = __rtpath__ + name + ".npz"
     imname = __ripath__ + name + ".png"
 
-    files = [enname, lroute, hroute, imname]
+    files = [enname, hroute, imname]
 
     print "Are you sure you want to delete '%s'? ([Y]/n)" % name
     s = raw_input()
@@ -178,16 +207,21 @@ def delete_test(sky_type, j, fov=False):
             except OSError as e:
                 print e.message
 
-        if not fov:
-            tests[sky_type].remove(tests[sky_type][id])
-            with open(__logpath__, 'wb') as f:
-                yaml.safe_dump(tests, f, default_flow_style=False, allow_unicode=False)
-                print "Tests log updated successfully."
-        else:
+        if bin:
+            bin_tests[sky_type].remove(bin_tests[sky_type][id])
+            with open(__binpath__, 'wb') as f:
+                yaml.safe_dump(bin_tests, f, default_flow_style=False, allow_unicode=False)
+                print "Binary tests log updated successfully."
+        elif fov:
             fov_tests[sky_type].remove(fov_tests[sky_type][id])
             with open(__fovpath__, 'wb') as f:
                 yaml.safe_dump(fov_tests, f, default_flow_style=False, allow_unicode=False)
                 print "FOV tests log updated successfully."
+        else:
+            tests[sky_type].remove(tests[sky_type][id])
+            with open(__logpath__, 'wb') as f:
+                yaml.safe_dump(tests, f, default_flow_style=False, allow_unicode=False)
+                print "Tests log updated successfully."
 
         return True
 
@@ -199,8 +233,9 @@ def delete_test(sky_type, j, fov=False):
 
 if __name__ == "__main__":
     sky_type = "live"
-    id = -1
+    id = 0
     fov = True
+    bin = True
 
-    delete_test(sky_type, id, fov=fov)
+    delete_test(sky_type, id, fov=fov, bin=True)
 

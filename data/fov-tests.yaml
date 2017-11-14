@@ -29,6 +29,11 @@ fixed:
   sfov: 80
   step: 10
   time: 18-07
+- date: '2017-06-10'
+  gfov: 29
+  sfov: 80
+  step: 10
+  time: 12-09
 fixed-no-pol:
 - date: '2017-11-06'
   gfov: 29
@@ -60,6 +65,11 @@ fixed-no-pol:
   sfov: 80
   step: 10
   time: 10-07
+- date: '2017-06-10'
+  gfov: 29
+  sfov: 80
+  step: 10
+  time: 15-06
 fixed-no-pol-rgb:
 - date: '2017-11-06'
   gfov: 29
@@ -91,6 +101,11 @@ fixed-no-pol-rgb:
   sfov: 80
   step: 10
   time: 11-12
+- date: '2017-06-10'
+  gfov: 29
+  sfov: 80
+  step: 10
+  time: 16-33
 fixed-rgb:
 - date: '2017-11-05'
   gfov: 29
@@ -122,6 +137,11 @@ fixed-rgb:
   sfov: 80
   step: 10
   time: 07-39
+- date: '2017-06-10'
+  gfov: 29
+  sfov: 80
+  step: 10
+  time: 13-36
 live:
 - date: '2017-11-04'
   gfov: 29
@@ -189,6 +209,11 @@ live-no-pol:
   sfov: 80
   step: 10
   time: 15-44
+- date: '2017-06-10'
+  gfov: 29
+  sfov: 80
+  step: 10
+  time: 09-40
 live-no-pol-rgb:
 - date: '2017-11-05'
   gfov: 29
@@ -220,6 +245,11 @@ live-no-pol-rgb:
   sfov: 80
   step: 10
   time: 17-16
+- date: '2017-06-10'
+  gfov: 29
+  sfov: 80
+  step: 10
+  time: 11-07
 live-rgb:
 - date: '2017-11-04'
   gfov: 29
@@ -251,6 +281,11 @@ live-rgb:
   sfov: 80
   step: 10
   time: 14-09
+- date: '2017-06-09'
+  gfov: 29
+  sfov: 80
+  step: 10
+  time: 17-23
 uniform:
 - date: '2017-11-04'
   gfov: 29
@@ -282,6 +317,11 @@ uniform:
   sfov: 80
   step: 10
   time: 22-30
+- date: '2017-06-09'
+  gfov: 29
+  sfov: 80
+  step: 10
+  time: 18-50
 uniform-rgb:
 - date: '2017-11-03'
   gfov: 29
@@ -313,3 +353,8 @@ uniform-rgb:
   sfov: 80
   step: 10
   time: 12-13
+- date: '2017-06-09'
+  gfov: 29
+  sfov: 80
+  step: 10
+  time: 20-13

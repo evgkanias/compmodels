@@ -7,6 +7,7 @@ from utils import *
 
 # sky_type = "fixed"
 fov = True
+bin = True
 
 if 'sky_type' in locals():
     plt.figure(sky_type, figsize=(30, 20))
@@ -41,7 +42,7 @@ else:
         print i, sky_type,
         w = load_world()
         try:
-            name = get_agent_name(sky_type, 0, fov)
+            name = get_agent_name(sky_type, 0, fov=fov, bin=bin)
             print ""
         except AttributeError, e:
             print "aboard"
@@ -51,9 +52,9 @@ else:
         r.route_no = 2
         w.add_route(r)
         labels = []
-        test_ = fov_tests if fov else tests
+        test_ = bin_tests if bin else fov_tests if fov else tests
         for j in xrange(len(test_[sky_type])):
-            name = get_agent_name(sky_type, j, fov)
+            name = get_agent_name(sky_type, j, fov=fov, bin=bin)
             labels.append(name.split("_")[0] + " " + name.split("_")[1])
             r = load_route(name)
             r.agent_no = j+2
