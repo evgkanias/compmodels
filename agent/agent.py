@@ -318,9 +318,9 @@ if __name__ == "__main__":
         # (True, False, True, True, None),      # live-rgb
         # (True, False, False, False, None),    # live-no-pol
         # (True, False, False, True, None),     # live-no-pol-rgb
-        (False, True, True, False, np.random.RandomState(2018)),  # uniform
-        (False, True, True, True, np.random.RandomState(2018)),  # uniform-rgb
-        (False, False, True, False, None),    # fixed
+        # (False, True, True, False, np.random.RandomState(2018)),  # uniform
+        # (False, True, True, True, np.random.RandomState(2018)),  # uniform-rgb
+        # (False, False, True, False, None),    # fixed
         (False, False, True, True, None),     # fixed-rgb
         (False, False, False, False, None),    # fixed-no-pol
         (False, False, False, True, None),     # fixed-no-pol-rgb

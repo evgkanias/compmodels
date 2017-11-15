@@ -1,13 +1,15 @@
 import numpy as np
 import numpy.linalg as la
+from matplotlib import cm
 from datetime import timedelta, datetime
 from PIL import ImageDraw, Image
-from colorsys import hsv_to_rgb
 from utils import vec2sph, shifted_datetime
 from ephem import Observer
 from sky import get_seville_observer, ChromaticitySkyModel
 from compoundeye import CompoundEye
 from geometry import PolygonList, Route
+
+cmap = cm.get_cmap('brg')
 
 WIDTH = 36
 HEIGHT = 10
@@ -139,10 +141,7 @@ class World(object):
             # transform the routes similarly to the polygons
             rt = route.scale(*(self.ratio2meters,) * 3)
             rt = rt * [width, length, height]
-            h = np.linspace(0, 1, nants)[rt.agent_no-1]
-            s = np.linspace(0, 1, nroutes)[rt.route_no-1]
-            v = .5
-            r, g, b = hsv_to_rgb(h, s, v)
+            r, g, b, _ = cmap(float(rt.agent_no) / float(len(self.routes)))
             draw.line(rt.xy, fill=(int(r * 255), int(g * 255), int(b * 255)))
 
         return image, draw
