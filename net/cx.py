@@ -264,4 +264,3 @@ def decode_position(cpu4_reshaped, cpu4_mem_gain):
     angle = -np.angle(np.conj(fund_freq))
     distance = np.absolute(fund_freq) / cpu4_mem_gain
     return angle, distance
-

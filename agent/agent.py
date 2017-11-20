@@ -333,7 +333,8 @@ if __name__ == "__main__":
         if rng is None:
             rng = np.random.RandomState(2018)
         RND = rng
-        fov = (-np.pi/6, np.pi/2)
+        fov = (-np.pi/2, np.pi/2)
+        # fov = (-np.pi/6, np.pi/2)
         sky_type = "uniform" if uniform_sky else "live" if update_sky else "fixed"
         if not enable_pol and "uniform" not in sky_type:
             sky_type += "-no-pol"
