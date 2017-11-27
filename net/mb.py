@@ -1,46 +1,26 @@
 import numpy as np
-import yaml
-import os
+from base import Network, params
 
-# get path of the script
-cpath = os.path.dirname(os.path.abspath(__file__)) + '/'
-
-# load parameters
-with open(cpath + 'params.yaml', 'rb') as f:
-    params = yaml.safe_load(f)
-
-GAIN = params['gain']
 LEARNING_RATE = params['learning-rate']
 KC_THRESHOLD = params['kc-threshold']
 
-RNG = np.random.RandomState(2018)
 
+class Willshaw(Network):
 
-class Willshaw(object):
-
-    def __init__(self, gain=GAIN, learning_rate=LEARNING_RATE, tau=KC_THRESHOLD, nb_channels=1,
-                 rng=RNG, dtype=np.float32):
+    def __init__(self, learning_rate=LEARNING_RATE, tau=KC_THRESHOLD, nb_channels=1, **kwargs):
         """
 
-        :param gain:
-        :type gain: float, int
         :param learning_rate: the rate with which the weights are changing
         :type learning_rate: float
         :param tau: the threshold after witch a KC is activated
         :type tau: float
         :param nb_channels: number of colour channels that can be interpreted
         :type nb_channels: int
-        :param rng: the random state generator
-        :type rng: np.random.RandomState
-        :param dtype: the type of the values in the network
-        :type dtype: Type[np.dtype]
         """
-        self.dtype = dtype
+        super(Willshaw, self).__init__(**kwargs)
         self.learning_rate = learning_rate
-        self.gain = gain
         self._tau = tau
         self.nb_channels = nb_channels
-        self.rng = rng
 
         self.nb_pn = params['mushroom-body']['PN'] * nb_channels
         self.nb_kc = params['mushroom-body']['KC'] * nb_channels
@@ -60,14 +40,6 @@ class Willshaw(object):
         self.en = np.zeros(self.nb_en)
 
         self.__update = False
-
-    @property
-    def update(self):
-        return self.__update
-
-    @update.setter
-    def update(self, value):
-        self.__update = value
 
     def __call__(self, *args, **kwargs):
         self.pn, self.kc, self.en = self._fprop(args[0])

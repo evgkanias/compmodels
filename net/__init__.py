@@ -1,3 +1,3 @@
 from mb import *
-from cx import CX, CXForwards, CXAveraging, CXFlipped
+from cx_old import CX, CXForwards, CXAveraging, CXFlipped
 from cxrate import *
