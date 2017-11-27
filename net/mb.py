@@ -1,5 +1,5 @@
 import numpy as np
-from base import Network, params
+from base import Network, params, RNG
 
 LEARNING_RATE = params['learning-rate']
 KC_THRESHOLD = params['kc-threshold']
@@ -30,9 +30,9 @@ class Willshaw(Network):
         self.w_kc2en = np.ones((self.nb_kc, self.nb_en), dtype=self.dtype)
         self.params = [self.w_pn2kc, self.w_kc2en]
 
-        self.f_pn = lambda x: np.maximum(dtype(x) / dtype(255), 0)
-        # self.f_pn = lambda x: np.maximum(dtype(dtype(x) / dtype(255) > .5), 0)
-        self.f_kc = lambda x: dtype(x > tau)
+        self.f_pn = lambda x: np.maximum(self.dtype(x) / self.dtype(255), 0)
+        # self.f_pn = lambda x: np.maximum(self.dtype(self.dtype(x) / self.dtype(255) > .5), 0)
+        self.f_kc = lambda x: self.dtype(x > tau)
         self.f_en = lambda x: np.maximum(x, 0)
 
         self.pn = np.zeros(self.nb_pn)

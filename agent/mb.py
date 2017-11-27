@@ -2,7 +2,7 @@ import numpy as np
 from PIL import Image
 from world import Route, route_like, Hybrid, save_route, __data__
 from net import Willshaw
-from agent import Agent
+from base import Agent
 from visualiser import Visualiser
 from world.utils import shifted_datetime
 from utils import *
@@ -11,8 +11,7 @@ from utils import *
 class MBAgent(Agent):
     FOV = (-np.pi/6, 4*np.pi/9)
 
-    def __init__(self, init_pos=np.zeros(3), init_rot=np.zeros(2), condition=Hybrid(),
-                 live_sky=True, rgb=False, fov=(-np.pi/2, np.pi/2), visualiser=None, name=None):
+    def __init__(self, *args, **kwargs):
         """
 
         :param init_pos: the initial position
@@ -32,16 +31,14 @@ class MBAgent(Agent):
         :param name: a name for the agent
         :type name: string
         """
-        super(MBAgent, self).__init__(init_pos=init_pos, init_rot=init_rot, condition=condition,
-                                      live_sky=live_sky, rgb=rgb, visualiser=visualiser, name=name)
+        if 'fov' in kwargs.keys() and kwargs['fov'] is None:
+            kwargs['fov'] = MBAgent.FOV
 
-        self._net = Willshaw(nb_channels=3 if rgb else 1)  # learning_rate=1)
-        # self.__per_ground = 1.  # .3  # type: float
-        # self.__per_sky = 1.  # .8  # type: float
-        self.__per_ground = np.abs(fov[0]) / (np.pi / 2)  # type: float
-        self.__per_sky = np.abs(fov[1]) / (np.pi / 2)  # type: float
+        super(MBAgent, self).__init__(*args, **kwargs)
 
-        if name is None:
+        self._net = Willshaw(nb_channels=3 if self.rgb else 1)  # learning_rate=1)
+
+        if 'name' in kwargs.keys() and kwargs['name'] is None:
             self.name = "mb_agent_%02d" % self.id
 
     def reset(self):
@@ -225,14 +222,6 @@ class MBAgent(Agent):
         self.world.routes.remove(self.world.routes[-1])
         np.savez(__data__ + "EN/%s.npz" % self.name, en=np.array(ens))
         return Route(xs, ys, zs, phis, condition=self.condition, agent_no=self.id, route_no=len(self.world.routes) + 1)
-
-    def world_snapshot(self, d_phi=0, width=None, height=None):
-        x, y, z = self.pos
-        phi = self.rot[1] + d_phi
-        img, draw = self.world.draw_panoramic_view(x, y, z, phi, update_sky=self.live_sky,
-                                                   include_ground=self.__per_ground, include_sky=self.__per_sky,
-                                                   width=width, length=width, height=height)
-        return img
 
     def img2pn(self, image):
         """

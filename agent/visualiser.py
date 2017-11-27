@@ -39,9 +39,9 @@ class Visualiser(object):
 
     def update_main(self, img_func, en=None, thumbs=None, caption=""):
         if self.__mode == "top":
-            img, _ = img_func(width=self.width, length=self.width)
+            img = img_func(width=self.width, length=self.width)
         else:
-            img, _ = img_func(width=self.width, height=self.height)
+            img = img_func(width=self.width, height=self.height)
         self.screen.blit(pygame.image.fromstring(img.tobytes("raw", "RGB"), img.size, "RGB"), (0, 0))
 
         if en is not None:

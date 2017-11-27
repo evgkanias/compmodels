@@ -1,5 +1,4 @@
-from agent import Agent
-from mb_agent import MBAgent
-from cx_agent import CXAgent
+from mb import MBAgent
+from cx import CXAgent
 from visualiser import *
 from utils import *

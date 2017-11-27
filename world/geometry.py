@@ -435,6 +435,14 @@ class Route(object):
                           condition=Hybrid(tau_x=self.condition.step / xyzmax[:2].mean(),
                                            tau_phi=self.condition.phi))
 
+    def reverse(self):
+        rt = self.__copy__()
+        rt.x = rt.x[::-1]
+        rt.y = rt.y[::-1]
+        rt.z = rt.z[::-1]
+        rt.phi = np.roll((rt.phi[::-1] + np.pi) % (2 * np.pi), 1)
+        return rt
+
     def __iter__(self):
         px, py, pz, p_phi = self.x[0], self.y[0], self.z[0], self.phi[0]
         phi = 0.
