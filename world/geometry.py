@@ -450,7 +450,7 @@ class Route(object):
         for x, y, z in zip(self.x[1:], self.y[1:], self.z[1:]):
             dv = np.array([x - px, y - py, z - pz])
             d = np.sqrt(np.square(dv).sum())
-            phi = np.arctan2(dv[1], dv[0])
+            phi = np.arctan2(dv[0], dv[1])
             if self.condition(d, np.abs(phi - p_phi)):
                 yield px, py, pz, phi  # type: tuple
                 px, py, pz, pphi = x, y, z, phi
@@ -596,3 +596,46 @@ def route_like(r, xs=None, ys=None, zs=None, phis=None,
     if route_no is not None:
         new_route.route_no = route_no
     return new_route  # type: Route
+
+
+if __name__ == "__main__":
+    from world import load_world, load_routes
+    from datetime import datetime
+    import matplotlib.pyplot as plt
+
+    step = .01  # 1 cm
+    tau_phi = np.pi    # 180 deg
+    date = datetime(2017, 12, 21, 12, 0, 0)
+
+    world = load_world()
+    routes = load_routes()
+    route = routes[0]
+    route.agent_no = 1
+    route.route_no = 2
+    route.condition = Hybrid(tau_x=step, tau_phi=tau_phi)
+    world.add_route(route)
+    world.sky.obs.date = date
+    world.sky.generate()
+
+    img, _ = world.draw_top_view(1000, 1000)
+    img.show(title="Route")
+
+    plt.figure("Statistics")
+
+    x = np.array(route.x)
+    y = np.array(route.y)
+    plt.subplot(211)
+    plt.plot(x, label="x")
+    plt.plot(y, label="y")
+    plt.ylim([0, 10])
+    plt.legend()
+
+    plt.subplot(212)
+    plt.plot(np.arctan2(np.diff(x), np.diff(y)), label="heading")
+    plt.plot(np.ones(len(x)) * world.sky.lon, label="sun")
+    plt.ylim([-np.pi, np.pi])
+    plt.yticks([-np.pi, -np.pi/2, 0, np.pi/2, np.pi], ["-pi", "-pi/2", "0", "pi/2", "pi"])
+    plt.legend()
+
+    plt.show()
+

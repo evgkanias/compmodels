@@ -49,6 +49,8 @@ class Agent(object):
         self.__per_ground = np.abs(fov[0]) / (np.pi / 2)  # type: float
         self.__per_sky = np.abs(fov[1]) / (np.pi / 2)  # type: float
 
+        self.log = Logger()
+
         Agent.__latest_agent_id__ += 1
         self.id = Agent.__latest_agent_id__
         if name is None:
@@ -63,10 +65,11 @@ class Agent(object):
         """
         self.__is_foraging = False
         self.__is_homing = True
+        self.log.reset()
 
         if len(self.homing_routes) > 0:
             self.pos[:2] = self.feeder.copy()
-            self.rot[1] = self.homing_routes[-1].phi[0]
+            self.rot[1] = self.homing_routes[0].phi[0]
             return True
         else:
             # TODO: warn about the existence of the route
@@ -119,3 +122,94 @@ class Agent(object):
                                                    include_ground=self.__per_ground, include_sky=self.__per_sky,
                                                    width=width, length=width, height=height)
         return img
+
+
+class Logger(object):
+
+    def __init__(self):
+
+        self.__x = [np.empty(0)] * 2
+        self.__y = [np.empty(0)] * 2
+        self.__z = [np.empty(0)] * 2
+        self.__phi = [np.empty(0)] * 2
+
+        self.hist = {}
+        self.__stage = "training"
+
+    @property
+    def x(self):
+        i = np.int(self.__stage == "training")
+        return self.__x[i]
+
+    @x.setter
+    def x(self, value):
+        i = np.int(self.__stage == "training")
+        self.__x[i] = value
+
+    @property
+    def y(self):
+        i = np.int(self.__stage == "training")
+        return self.__y[i]
+
+    @y.setter
+    def y(self, value):
+        i = np.int(self.__stage == "training")
+        self.__y[i] = value
+
+    @property
+    def z(self):
+        i = np.int(self.__stage == "training")
+        return self.__z[i]
+
+    @z.setter
+    def z(self, value):
+        i = np.int(self.__stage == "training")
+        self.__z[i] = value
+
+    @property
+    def phi(self):
+        i = np.int(self.__stage == "training")
+        return self.__phi[i]
+
+    @phi.setter
+    def phi(self, value):
+        i = np.int(self.__stage == "training")
+        self.__phi[i] = value
+
+    @property
+    def xyz(self):
+        return np.array([self.x, self.y, self.z]).T
+
+    @xyz.setter
+    def xyz(self, value):
+        self.x, self.y, self.z = value.T
+
+    def set_stage(self, mode):
+        assert mode in ["training", "homing"]
+
+        self.__stage = mode
+
+    def reset(self):
+        self.x = np.empty(0)
+        self.y = np.empty(0)
+        self.z = np.empty(0)
+        self.phi = np.empty(0)
+
+        self.hist = {}
+
+    def add(self, pos, rot):
+        self.x = np.append(self.x, pos[0])
+        self.y = np.append(self.y, pos[1])
+        self.z = np.append(self.z, pos[2])
+        self.phi = np.append(self.phi, rot)
+
+    def update_hist(self, *args, **kwargs):
+        for i, key in enumerate(self.hist.keys()[:len(args)]):
+            self.hist[key].append(args[i])
+
+        for key in kwargs.keys():
+            if key in self.hist.keys():
+                self.hist[key].append(kwargs[key])
+
+    def distance(self, point):
+        return np.sqrt(np.square(self.xyz - point).sum(axis=-1))

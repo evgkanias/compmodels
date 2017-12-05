@@ -8,7 +8,7 @@ def vec2sph(vec):
     Transforms a cartessian vector to spherical coordinates.
     :param vec:     the cartessian vector
     :return theta:  elevation
-    :return phi:    azimuth
+    :return __phi:    azimuth
     :return rho:    radius
     """
     rho = la.norm(vec, axis=-1)  # length of the radius
@@ -25,7 +25,7 @@ def vec2sph(vec):
     phi = np.arctan2(v[:, 1], v[:, 0])  # azimuth
     theta = np.arccos(v[:, 2])  # elevation
 
-    # theta, phi = sphadj(theta, phi)  # bound the spherical coordinates
+    # theta, __phi = sphadj(theta, __phi)  # bound the spherical coordinates
     return np.asarray([theta, phi, rho[:, -1]])
 
 

@@ -30,7 +30,12 @@ central-complex-rate:
     bias: 2.5
   cpu1-tuned:
     slope: 5.0
+#    slope: 7.5
     bias: 2.5
+#    bias: -1.0
   motor-tuned:
     slope: 1.0
     bias: 3.0
+  pontin-tuned:
+    slope: 5.0
+    bias: 2.5
