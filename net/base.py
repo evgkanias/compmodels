@@ -29,6 +29,8 @@ class Network(object):
         self.dtype = dtype
         self.rng = rng
 
+        self.params = []
+
         self.__update = False
 
     @property
@@ -38,3 +40,6 @@ class Network(object):
     @update.setter
     def update(self, value):
         self.__update = value
+
+    def reset(self):
+        self.__update = False

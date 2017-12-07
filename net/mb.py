@@ -41,6 +41,15 @@ class Willshaw(Network):
 
         self.__update = False
 
+    def reset(self):
+        super(Willshaw, self).reset()
+
+        self.pn = np.zeros(self.nb_pn)
+        self.kc = np.zeros(self.nb_kc)
+        self.en = np.zeros(self.nb_en)
+
+        self.w_kc2en = np.ones((self.nb_kc, self.nb_en), dtype=self.dtype)
+
     def __call__(self, *args, **kwargs):
         self.pn, self.kc, self.en = self._fprop(args[0])
         if self.__update:

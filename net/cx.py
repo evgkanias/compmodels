@@ -101,6 +101,22 @@ class CX(Network):
             ]).T
         self.w_cpu42pontin = np.eye(self.nb_cpu4)
 
+        self.params = [
+            self.w_tl22cl1,
+            self.w_cl12tb1,
+            self.w_tb12tb1,
+            self.w_tb12cpu4,
+            self.w_tb12cpu1a,
+            self.w_tb12cpu1b,
+            self.w_cpu42cpu1a,
+            self.w_cpu42cpu1b,
+            self.w_cpu1a2motor,
+            self.w_cpu1b2motor,
+            self.w_cpu42pontin,
+            self.w_pontin2cpu1a,
+            self.w_pontin2cpu1b
+        ]
+
         # import matplotlib.pyplot as plt
         #
         # plt.figure()
@@ -160,6 +176,18 @@ class CX(Network):
     @property
     def cpu4_mem(self):
         return self.__cpu4
+
+    def reset(self):
+        super(CX, self).reset()
+
+        self.tl2 = np.zeros(self.nb_tl2)
+        self.cl1 = np.zeros(self.nb_cl1)
+        self.tb1 = np.zeros(self.nb_tb1)
+        self.tn1 = np.zeros(self.nb_tn1)
+        self.tn2 = np.zeros(self.nb_tn2)
+        self.__cpu4 = .5 * np.ones(self.nb_cpu4)  # cpu4 memory
+        self.cpu4 = np.zeros(self.nb_cpu4)  # cpu4 output
+        self.cpu1 = np.zeros(self.nb_cpu1)
 
     def __call__(self, *args, **kwargs):
         compass, flow = args[:2]

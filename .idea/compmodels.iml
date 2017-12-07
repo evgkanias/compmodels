@@ -5,6 +5,6 @@
     <orderEntry type="jdk" jdkName="Python 2.7.12 (/usr/bin/python2.7)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="skylight" />
-    <orderEntry type="module" module-name="skylight" />
+    <orderEntry type="module" module-name="insectvision" />
   </component>
 </module>

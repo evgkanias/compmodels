@@ -41,7 +41,7 @@ class CXAgent(Agent):
 
         super(CXAgent, self).__init__(*args, **kwargs)
 
-        self._net = CX(noise=.01)
+        self._net = CX(noise=0., pontin=False)
         self.compass = compass
         self.bump_shift = 0.
         self.log = CXLogger()
@@ -106,21 +106,23 @@ class CXAgent(Agent):
             distance = np.sqrt(np.square(self.pos[:2] - self.feeder[:2]).sum())
 
             # update the route in the world
-            self.world.routes[-1] = route_like(self.world.routes[-1],self.log.x, self.log.y, self.log.z, self.log.phi)
+            self.world.routes[-1] = route_like(self.world.routes[-1], self.log.x, self.log.y, self.log.z, self.log.phi)
 
             sun = self.read_sensor()
-            v_trans = self.transform_velocity(sun, v)
-            flow = self._net.get_flow(sun, v_trans)
+            if isinstance(sun, np.ndarray) and sun.size == 8:
+                heading = decode_sun(sun)[0]
+            else:
+                heading = sun
+            v_trans = self.transform_velocity(heading, v)
+            flow = self._net.get_flow(heading, v_trans)
             # flow = self._net.get_flow(__phi, v)
 
             # make a forward pass from the network
             motor = self._net(sun, flow)
-            if isinstance(sun, np.ndarray) and sun.size == 8:
-                sun = decode_sun(sun)[0]
 
             self.log.update_hist(tl2=self._net.tl2, cl1=self._net.cl1, tb1=self._net.tb1, cpu4=self._net.cpu4_mem,
                                  cpu1=self._net.cpu1, tn1=self._net.tn1, tn2=self._net.tn2, motor0=motor,
-                                 flow0=flow, v0=v, v1=v_trans, phi=phi, sun=sun)
+                                 flow0=flow, v0=v, v1=v_trans, phi=phi, sun=heading)
             counter += 1
 
             # update view
@@ -178,18 +180,18 @@ class CXAgent(Agent):
                 break
 
             sun = self.read_sensor()
-            v_trans = self.transform_velocity(sun, v)
-            flow = self._net.get_flow(sun, v_trans)
-            # flow = self._net.get_flow(__phi, v)
+            if isinstance(sun, np.ndarray) and sun.size == 8:
+                heading = decode_sun(sun)[0]
+            else:
+                heading = sun
+            v_trans = self.transform_velocity(heading, v)
+            flow = self._net.get_flow(heading, v_trans)
 
             # make a forward pass from the network
             motor = self._net(sun, flow)
-            # motor = self._net(__phi + np.sign(d_phi) * self.bump_shift, flow)
-            if isinstance(sun, np.ndarray) and sun.size == 8:
-                sun = decode_sun(sun)[0]
             self.log.update_hist(tl2=self._net.tl2, cl1=self._net.cl1, tb1=self._net.tb1, cpu4=self._net.cpu4_mem,
                                  cpu1=self._net.cpu1, tn1=self._net.tn1, tn2=self._net.tn2, motor0=motor,
-                                 flow0=flow, v0=v, v1=v_trans, phi=phi, sun=sun)
+                                 flow0=flow, v0=v, v1=v_trans, phi=phi, sun=heading)
 
             phi, v = self.update_state(phi, rotation=motor)
             counter += 1
@@ -306,6 +308,9 @@ if __name__ == "__main__":
 
     exps = [
         (False, False, True, False, None),    # fixed
+        (False, False, True, True, None),     # fixed-rgb
+        (False, False, False, False, None),    # fixed-no-pol
+        (False, False, False, True, None),     # fixed-no-pol-rgb
     ]
 
     bin = True
