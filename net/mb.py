@@ -5,7 +5,7 @@ LEARNING_RATE = params['learning-rate']
 KC_THRESHOLD = params['kc-threshold']
 
 
-class Willshaw(Network):
+class MB(Network):
 
     def __init__(self, learning_rate=LEARNING_RATE, tau=KC_THRESHOLD, nb_channels=1, **kwargs):
         """
@@ -17,7 +17,7 @@ class Willshaw(Network):
         :param nb_channels: number of colour channels that can be interpreted
         :type nb_channels: int
         """
-        super(Willshaw, self).__init__(**kwargs)
+        super(MB, self).__init__(**kwargs)
         self.learning_rate = learning_rate
         self._tau = tau
         self.nb_channels = nb_channels
@@ -42,7 +42,7 @@ class Willshaw(Network):
         self.__update = False
 
     def reset(self):
-        super(Willshaw, self).reset()
+        super(MB, self).reset()
 
         self.pn = np.zeros(self.nb_pn)
         self.kc = np.zeros(self.nb_kc)
@@ -149,7 +149,7 @@ if __name__ == "__main__":
     routes[0].condition = Hybrid(tau_x=.1, tau_phi=np.pi)
     world.add_route(routes[0])
 
-    nn = Willshaw(nb_channels=3)
+    nn = MB(nb_channels=3)
     nn.update = True
     vis = Visualiser(mode="panorama")
     vis.reset()

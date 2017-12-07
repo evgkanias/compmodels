@@ -1,8 +1,9 @@
 import numpy as np
 from PIL import Image
-from world import Route, route_like, Hybrid, save_route, __data__
-from net import Willshaw
-from base import Agent
+from world import Route, route_like, Hybrid, save_route
+from world.data_manager import __data__
+from net import MB
+from base import Agent, Logger
 from visualiser import Visualiser
 from world.utils import shifted_datetime
 from utils import *
@@ -36,7 +37,7 @@ class MBAgent(Agent):
 
         super(MBAgent, self).__init__(*args, **kwargs)
 
-        self._net = Willshaw(nb_channels=3 if self.rgb else 1)  # learning_rate=1)
+        self._net = MB(nb_channels=3 if self.rgb else 1)  # learning_rate=1)
 
         if 'name' in kwargs.keys() and kwargs['name'] is None:
             self.name = "mb_agent_%02d" % self.id
@@ -97,8 +98,8 @@ class MBAgent(Agent):
 
                 d_phi = np.abs(phi - pphi)
 
-                # generate the visual input and transform it to the projecting neurons
-                pn = self.img2pn(self.world_snapshot()[0])
+                # generate the visual input and code it to the projecting neurons
+                pn = self.img2pn(self.world_snapshot())
                 # make a forward pass from the network (updating the parameters)
                 en = self._net(pn)
                 counter += 1
@@ -163,8 +164,8 @@ class MBAgent(Agent):
                 if self.visualiser is not None and self.visualiser.is_quit():
                     break
 
-                # generate the visual input and transform to the PN values
-                snap = self.world_snapshot(d_phi=d_phi)[0]
+                # generate the visual input and code to the PN values
+                snap = self.world_snapshot(d_phi=d_phi)
                 snaps.append(snap)
                 pn = self.img2pn(snap)
 
@@ -236,6 +237,10 @@ class MBAgent(Agent):
             return np.array(image).flatten()
         else:  # keep only green channel
             return np.array(image).reshape((-1, 3))[:, 0].flatten()
+
+
+class MBLogger(Logger):
+    pass
 
 
 if __name__ == "__main__":

@@ -1,8 +1,9 @@
 import numpy as np
 from scipy.special import expit
-from base import Network, params, RNG
+from base import Network, params, RNG, GAIN
+from opticflow import get_flow as get_sph_flow
 
-GAIN = -1 / params['gain']
+GAIN = -1. / GAIN
 N_COLUMNS = params['central-complex']['columns']  # 8
 x = np.linspace(0, 2 * np.pi, N_COLUMNS, endpoint=False)
 
@@ -188,6 +189,7 @@ class CX(Network):
         self.__cpu4 = .5 * np.ones(self.nb_cpu4)  # cpu4 memory
         self.cpu4 = np.zeros(self.nb_cpu4)  # cpu4 output
         self.cpu1 = np.zeros(self.nb_cpu1)
+        self.update = True
 
     def __call__(self, *args, **kwargs):
         compass, flow = args[:2]
@@ -284,9 +286,11 @@ class CX(Network):
             update -= self.gain * .25 * tn2.dot(self.w_tn2cpu4)
 
         # Constant purely to visualise same as rate-based model
-        self.__cpu4 = np.clip(self.__cpu4 + update, 0., 1.)
+        cpu4 = np.clip(self.__cpu4 + update, 0., 1.)
+        if self.update:
+            self.__cpu4 = cpu4
 
-        return noisy_sigmoid(self.__cpu4, self.cpu4_slope, self.cpu4_bias, self.noise)
+        return noisy_sigmoid(cpu4, self.cpu4_slope, self.cpu4_bias, self.noise)
 
     def f_pontin(self, cpu4):
         inputs = cpu4.dot(self.w_cpu42pontin)

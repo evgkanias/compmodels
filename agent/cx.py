@@ -1,6 +1,6 @@
 import numpy as np
 from base import Agent, Logger
-from world import Hybrid, Route, route_like, __data__
+from world import Hybrid, Route, route_like
 from net import CX
 from compoundeye import CompassSensor, decode_sun
 from datetime import datetime
@@ -60,6 +60,7 @@ class CXAgent(Agent):
             # reset to the nest instead of the feeder
             self.pos[:2] = self.nest.copy()
             self.rot[1] = (self.homing_routes[-1].phi[-2] + np.pi) % (2 * np.pi)
+            self._net.update = True
 
             return True
         else:
@@ -301,9 +302,9 @@ class CXLogger(Logger):
 
 
 if __name__ == "__main__":
-    from world import load_world, load_routes, save_route
+    from world import load_world, load_routes
     from world.utils import shifted_datetime
-    from utils import create_agent_name, update_tests
+    from utils import create_agent_name
     from visualiser import Visualiser
 
     exps = [

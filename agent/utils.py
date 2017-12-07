@@ -1,7 +1,7 @@
 import numpy as np
 import os
 import yaml
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # get path of the script
 __cpath__ = os.path.dirname(os.path.abspath(__file__)) + '/'

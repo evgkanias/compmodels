@@ -3,11 +3,12 @@ import numpy.linalg as la
 from matplotlib import cm
 from datetime import timedelta, datetime
 from PIL import ImageDraw, Image
-from utils import vec2sph, shifted_datetime
+from utils import shifted_datetime
 from ephem import Observer
-from sky import get_seville_observer, ChromaticitySkyModel
+from sky import get_seville_observer, SkyModel
 from compoundeye import CompoundEye
-from geometry import PolygonList, Route
+from geometry import PolygonList, Polygon, Route
+from sphere import vec2sph
 
 cmap = cm.get_cmap('brg')
 
@@ -61,7 +62,7 @@ class World(object):
         observer.date = self.datetime_now(init=True)
 
         # create and generate a sky instance
-        self.sky = ChromaticitySkyModel(observer=observer, nside=1)
+        self.sky = SkyModel(observer=observer, nside=1)
         self.sky.generate()
 
         # create a compound eye model for the sky pixels
@@ -138,7 +139,7 @@ class World(object):
         nants = int(np.array([r.agent_no for r in self.routes]).max())      # the ants' ID
         nroutes = int(np.array([r.route_no for r in self.routes]).max())  # the routes' ID
         for route in self.routes:
-            # transform the routes similarly to the polygons
+            # code the routes similarly to the polygons
             rt = route.scale(*(self.ratio2meters,) * 3)
             rt = rt * [width, length, height]
             r, g, b, _ = cmap(float(rt.agent_no) / float(len(self.routes)))
@@ -236,20 +237,21 @@ class World(object):
         ])
         thetas, phis, rhos = [], [], []
 
-        # transform position for meters to pixel-space
+        # code position for meters to pixel-space
         pos = np.array([x, y, z]) / self.ratio2meters
         pos *= np.array([width, length, height / Z])
         for p in self.polygons.scale(*((self.ratio2meters,) * 3)):
-            # transform polygons' points from meters to pixels
-            pp = p * [width, length, height / Z]
+            # code polygons' points from meters to pixels
+            pp = p * [width, length, height / Z]  # type: Polygon
             # and then into spherical coordinates
-            theta, phi, rho = vec2sph((pp.xyz - pos).dot(R))
+            xyz = np.array(pp.xyz) - pos
+            theta, phi, rho = vec2sph(xyz.dot(R).T)
             thetas.append(theta)
             phis.append(phi)
             rhos.append(rho)
 
-        # transform spherical elevation to pixel height
-        thetas = (height / Z) * (((np.array(thetas) % np.pi) / np.pi) - (1 - include_sky) / 2.)
+        # code spherical elevation to pixel height
+        thetas = (height / Z) * ((((np.pi/2 - np.array(thetas)) % np.pi) / np.pi) - (1 - include_sky) / 2.)
         phis = width * ((np.pi + np.array(phis)) % (2 * np.pi)) / (2 * np.pi)
         rhos = la.norm(np.array(rhos), axis=-1)
         ind = np.argsort(rhos)[::-1]
