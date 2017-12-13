@@ -5,6 +5,7 @@ from net import CX
 from compoundeye import CompassSensor, decode_sun
 from datetime import datetime
 from utils import datestr
+from opticflow import get_flow as get_sph_flow
 
 
 # ACCELERATION = .15  # a good value because keeps speed under 1
@@ -77,7 +78,7 @@ class CXAgent(Agent):
 
         print "Resetting..."
         self.reset()
-        self.log.set_stage("training")
+        self.log.stage = "training"
 
         # initialise visualisation
         if self.visualiser is not None:
@@ -90,7 +91,7 @@ class CXAgent(Agent):
         self.log.add(self.pos[:3], self.rot[1])
         self.world.routes.append(
             route_like(rt, self.log.x, self.log.y, self.log.z, self.log.phi,
-                       self.condition, agent_no=rt.agent_no, route_no=rt.route_no)
+                       self.condition, agent_no=self.id + 1, route_no=1)
         )
         counter = 0         # count the steps
 
@@ -98,50 +99,9 @@ class CXAgent(Agent):
         # phi_ = np.roll(phi_, 1)  # type: np.ndarray
 
         for phi in phi_:
-            # stop the loop when we close the visualisation window
-            if self.visualiser is not None and self.visualiser.is_quit():
+            if not self.step(phi, counter):
                 break
-
-            phi, v = self.update_state(phi)
-            # calculate the distance from the start position (feeder)
-            distance = np.sqrt(np.square(self.pos[:2] - self.feeder[:2]).sum())
-
-            # update the route in the world
-            self.world.routes[-1] = route_like(self.world.routes[-1], self.log.x, self.log.y, self.log.z, self.log.phi)
-
-            sun = self.read_sensor()
-            if isinstance(sun, np.ndarray) and sun.size == 8:
-                heading = decode_sun(sun)[0]
-            else:
-                heading = sun
-            v_trans = self.transform_velocity(heading, v)
-            flow = self._net.get_flow(heading, v_trans)
-            # flow = self._net.get_flow(__phi, v)
-
-            # make a forward pass from the network
-            motor = self._net(sun, flow)
-
-            self.log.update_hist(tl2=self._net.tl2, cl1=self._net.cl1, tb1=self._net.tb1, cpu4=self._net.cpu4_mem,
-                                 cpu1=self._net.cpu1, tn1=self._net.tn1, tn2=self._net.tn2, motor0=motor,
-                                 flow0=flow, v0=v, v1=v_trans, phi=phi, sun=heading)
             counter += 1
-
-            # update view
-            img_func = None
-            if self.visualiser is not None and self.visualiser.mode == "top":
-                img_func = self.world.draw_top_view
-            elif self.visualiser is not None and self.visualiser.mode == "panorama":
-                img_func = self.world_snapshot
-            if self.visualiser is not None:
-                names = self.name.split('_')
-                names[0] = self.world.date.strftime(datestr)
-                names.append(counter)
-                names.append(motor)
-                names.append(distance)
-                names.append(np.rad2deg(phi))
-
-                capt_format = "%s " * (len(names) - 4) + "| C: % 2d MTR: %.2f Distance: %.2f D_phi: % 2.2f"
-                self.visualiser.update_main(img_func, caption=capt_format % tuple(names))
 
         self.log.update_outbound_end()
         # remove the copy of the route from the world
@@ -158,74 +118,110 @@ class CXAgent(Agent):
         if reset:
             print "Resetting..."
             super(CXAgent, self).reset()
-        self.log.set_stage("homing")
+        self.log.stage = "homing"
 
         # initialise the visualisation
         if self.visualiser is not None:
             self.visualiser.reset()
 
-        phi, v = self.update_state(self.rot[1])
+        phi, _ = self.update_state(np.pi - self.rot[1])
         # add a copy of the current route to the world to visualise the path
         self.world.routes.append(route_like(
             self.world.routes[0], self.log.x, self.log.y, self.log.z, self.log.phi,
             agent_no=self.id, route_no=len(self.world.routes) + 1)
         )
 
-        d_nest = lambda: np.sqrt(np.square(self.pos[:2] - self.nest).sum())
-        d_feeder = 0
         counter = 0
         start_time = datetime.now()
-        while d_nest() > 0.1:
-
-            if self.visualiser is not None and self.visualiser.is_quit():
+        while self.d_nest > 0.1:
+            if not self.step(phi, counter, start_time):
                 break
-
-            sun = self.read_sensor()
-            if isinstance(sun, np.ndarray) and sun.size == 8:
-                heading = decode_sun(sun)[0]
-            else:
-                heading = sun
-            v_trans = self.transform_velocity(heading, v)
-            flow = self._net.get_flow(heading, v_trans)
-
-            # make a forward pass from the network
-            motor = self._net(sun, flow)
-            self.log.update_hist(tl2=self._net.tl2, cl1=self._net.cl1, tb1=self._net.tb1, cpu4=self._net.cpu4_mem,
-                                 cpu1=self._net.cpu1, tn1=self._net.tn1, tn2=self._net.tn2, motor0=motor,
-                                 flow0=flow, v0=v, v1=v_trans, phi=phi, sun=heading)
-
-            phi, v = self.update_state(phi, rotation=motor)
+            phi = np.pi - self.rot[1]
             counter += 1
 
-            self.world.routes[-1] = route_like(self.world.routes[-1], self.log.x, self.log.y, self.log.z, self.log.phi)
-
-            # update view
-            img_func = None
-            if self.visualiser is not None and self.visualiser.mode == "top":
-                img_func = self.world.draw_top_view
-            # elif self.visualiser.mode == "panorama":
-            #     img_func = self.world_snapshot
-            if self.visualiser is not None:
-                now = datetime.now() - start_time
-                names = self.name.split('_')
-                names[0] = self.world.date.strftime(datestr)
-                names.append(counter)
-                names.append(np.rad2deg(motor))
-                names.append(d_feeder)
-                names.append(d_nest())
-                names.append(now.seconds // 60)
-                names.append(now.seconds % 60)
-
-                capt_format = "%s " * (len(names) - 5) + "| C: % 2d, D_phi: % 3d, D: %.2f, D_nest: %.2f | " \
-                                                         "Elapsed time: %02d:%02d"
-                self.visualiser.update_main(img_func, caption=capt_format % tuple(names))
-
-            if d_feeder > 15:
-                break
-            d_feeder += np.sqrt(np.square(v).sum())
+        # remove the copy of the route from the world
         self.world.routes.remove(self.world.routes[-1])
         return Route(self.log.x, self.log.y, self.log.z, self.log.phi, condition=self.condition,
                      agent_no=self.id, route_no=len(self.world.routes) + 1)
+
+    def step(self, phi, counter=0, start_time=None, use_flow=True):
+        # stop the loop when we close the visualisation window
+        if self.visualiser is not None and self.visualiser.is_quit():
+            return False
+
+        sun = self.read_sensor()
+        if isinstance(sun, np.ndarray) and sun.size == 8:
+            heading = decode_sun(sun)[0]
+        else:
+            heading = sun
+
+        if use_flow:
+            self.world_snapshot()
+            self.log.snap.append(self.world.eye.L[:, 0].flatten())
+            flow = self.get_flow(self.log.snap[-1], self.log.snap[-2] if len(self.log.snap) > 1 else None)
+            # flow = self._net.get_flow(heading, v_trans)
+        else:
+            flow = self.dx * np.ones(2) / np.sqrt(2)
+
+        # make a forward pass from the network
+        motor = self._net(sun, flow)
+
+        phi, v = self.update_state(phi, rotation=motor)
+        v_trans = self.transform_velocity(heading, v)
+
+        self.log.update_hist(tl2=self._net.tl2, cl1=self._net.cl1, tb1=self._net.tb1, cpu4=self._net.cpu4_mem,
+                             cpu1=self._net.cpu1, tn1=self._net.tn1, tn2=self._net.tn2, motor0=motor,
+                             flow0=flow, v0=v, v1=v_trans, phi=phi, sun=heading)
+
+        # update the route in the world
+        self.world.routes[-1] = route_like(self.world.routes[-1], self.log.x, self.log.y, self.log.z, self.log.phi)
+
+        # update view
+        img_func = None
+        if self.visualiser is not None and self.visualiser.mode == "top":
+            img_func = self.world.draw_top_view
+        elif self.visualiser is not None and self.visualiser.mode == "panorama":
+            img_func = self.world_snapshot
+        if self.visualiser is not None:
+            names = self.name.split('_')
+            names[0] = self.world.date.strftime(datestr)
+            names.append(counter)
+            names.append(self.d_feeder)
+            names.append(self.d_nest)
+            names.append(np.rad2deg(motor))
+            n = 4
+            if start_time is not None:
+                now = datetime.now()
+                now = now - start_time
+                names.append(now.seconds // 60)
+                names.append(now.seconds % 60)
+                n += 2
+
+            capt_format = "%s " * (len(names) - n) + "| C: % 2d D_f: % 2.2f D_n: % 2.2f MTR: % 3.1f | "
+            if start_time is not None:
+                capt_format += " | Elapsed time: %02d:%02d"
+
+            self.visualiser.update_main(img_func, caption=capt_format % tuple(names))
+
+        d_max = 2 * np.sqrt(np.square(self.feeder - self.nest).sum())
+        if self.d_feeder > d_max and self.d_nest > d_max or counter > 20 / self.dx:
+            return False
+
+        return True
+
+    def get_flow(self, now, previous=None):
+        if previous is not None:
+            flow = -get_sph_flow(
+                n_val=np.array(now).flatten(),
+                o_val=np.array(previous).flatten(),
+                rdir=np.array([self.world.eye.theta, self.world.eye.phi]).T,
+                rsensor=np.array([[0, self._net.tn_prefs], [0, -self._net.tn_prefs]])
+            ).mean(axis=1)  # TODO: scale the value so that it fits better
+            flow = self.dx * flow / np.sqrt(np.square(flow).sum())
+        else:
+            flow = self.dx * np.ones(2)
+            # flow = self._net.get_flow(heading, v_trans)
+        return flow
 
     def read_sensor(self, decode=True):
         self.compass.facing_direction = np.pi - self.rot[1]
@@ -252,36 +248,17 @@ class CXAgent(Agent):
         r = np.sqrt(np.square(velocity).sum())
         return self.get_velocity(heading, r)
 
-    def update_state(self, heading, rotation=0):
-        phi, v = self.translate(heading, rotation, self.dx)
-
-        # update the agent position
-        self.pos[:] += np.array([v[0], -v[1], 0.])
-        self.rot[1] = np.pi - phi
-        self.log.add(self.pos[:3], self.rot[1])
-
-        return phi, v
-
-    @staticmethod
-    def translate(heading, rotation, acceleration):
-        phi = CXAgent.rotate(heading, rotation)
-        v = CXAgent.get_velocity(phi, acceleration)
-        return phi, v
-
-    @staticmethod
-    def rotate(heading, rotation):
-        return ((heading + rotation + np.pi) % (2 * np.pi)) - np.pi
-
-    @staticmethod
-    def get_velocity(phi, acceleration):
-        return np.array([np.sin(phi), np.cos(phi)]) * acceleration
-
 
 class CXLogger(Logger):
+
+    def __init__(self):
+        super(CXLogger, self).__init__()
+        self.snap = []
 
     def reset(self):
         super(CXLogger, self).reset()
 
+        self.snap = []
         self.hist["cpu1"] = []
         self.hist["cpu4"] = []
         self.hist["tb1"] = []
@@ -308,17 +285,17 @@ if __name__ == "__main__":
     from visualiser import Visualiser
 
     exps = [
-        (False, False, True, False, None),    # fixed
-        (False, False, True, True, None),     # fixed-rgb
-        (False, False, False, False, None),    # fixed-no-pol
-        (False, False, False, True, None),     # fixed-no-pol-rgb
+        (False, False, False, None),    # fixed
+        (False, False, True, None),     # fixed-rgb
+        (False, False, False, None),    # fixed-no-pol
+        (False, False, True, None),     # fixed-no-pol-rgb
     ]
 
-    bin = True
+    enable_pol = False
     show = True
     i = 0
 
-    for update_sky, uniform_sky, enable_pol, rgb, rng in exps:
+    for update_sky, uniform_sky, rgb, rng in exps:
         date = shifted_datetime()
         if rng is None:
             rng = np.random.RandomState(2018)
@@ -326,8 +303,6 @@ if __name__ == "__main__":
         fov = (-np.pi/2, np.pi/2)
         # fov = (-np.pi/6, np.pi/2)
         sky_type = "uniform" if uniform_sky else "live" if update_sky else "fixed"
-        if not enable_pol and "uniform" not in sky_type:
-            sky_type += "-no-pol"
         if rgb:
             sky_type += "-rgb"
         step = .01         # 1 cm
@@ -347,19 +322,20 @@ if __name__ == "__main__":
         i += 1
 
         agent = CXAgent(condition=condition, live_sky=update_sky,
-                        # visualiser=Visualiser(),
+                        visualiser=Visualiser(),
                         rgb=rgb, fov=fov, name=agent_name)
         agent.id = i + 1
         agent.set_world(world)
         print agent.homing_routes[0]
 
         if agent.visualiser is not None:
+            # agent.visualiser.set_mode("top")
             agent.visualiser.set_mode("panorama")
         route1 = agent.start_learning_walk()
         print "Learned route:", route1
 
-        # if agent.visualiser is not None:
-        #     agent.visualiser.set_mode("top")
+        if agent.visualiser is not None:
+            agent.visualiser.set_mode("top")
         route2 = agent.start_homing(reset=False)
         print "Homing route: ", route2
         # if route2 is not None:
@@ -370,7 +346,7 @@ if __name__ == "__main__":
         agent.world.routes.remove(agent.world.routes[0])
         agent.world.routes.append(route1)
         agent.world.routes.append(route2)
-        img, _ = agent.world.draw_top_view(1000, 1000)
+        img = agent.world.draw_top_view(1000, 1000)
         # img.save(__data__ + "routes-img/%s.png" % agent_name, "PNG")
         img.show(title="Testing route")
 
@@ -394,10 +370,10 @@ if __name__ == "__main__":
 
             plt.subplot(5, 2, 1)
             plt.grid()
-            # plt.plot(x, np.array(agent.hist["flow0"])[:, 0], label=r"flow_x")
-            # plt.plot(x, np.array(agent.hist["flow0"])[:, 1], label=r"flow_y")
-            plt.plot(x, np.array(agent.log.hist["v0"])[:, 0], label=r"v_x")
-            plt.plot(x, np.array(agent.log.hist["v0"])[:, 1], label=r"v_y")
+            plt.plot(x, np.array(agent.log.hist["flow0"])[:, 0], label=r"flow_x")
+            plt.plot(x, np.array(agent.log.hist["flow0"])[:, 1], label=r"flow_y")
+            # plt.plot(x, np.array(agent.log.hist["v0"])[:, 0], label=r"v_x")
+            # plt.plot(x, np.array(agent.log.hist["v0"])[:, 1], label=r"v_y")
             plt.plot(x, np.array(agent.log.hist["v1"])[:, 0], label=r"v'_x")
             plt.plot(x, np.array(agent.log.hist["v1"])[:, 1], label=r"v'_y")
             plt.legend()

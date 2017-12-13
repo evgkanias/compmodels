@@ -2,6 +2,7 @@ import numpy as np
 from copy import copy
 from numbers import Number
 from conditions import Hybrid
+from sphere import angle_between
 
 
 class PolygonList(list):
@@ -450,8 +451,8 @@ class Route(object):
         for x, y, z in zip(self.x[1:], self.y[1:], self.z[1:]):
             dv = np.array([x - px, y - py, z - pz])
             d = np.sqrt(np.square(dv).sum())
-            phi = np.arctan2(dv[0], dv[1])
-            if self.condition(d, np.abs(phi - p_phi)):
+            phi = (np.arctan2(dv[0], dv[1]) + np.pi) % (2 * np.pi) - np.pi
+            if self.condition(d, angle_between(phi, p_phi, sign=False)):
                 yield px, py, pz, phi  # type: tuple
                 px, py, pz, pphi = x, y, z, phi
 

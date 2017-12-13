@@ -307,20 +307,6 @@ class CXAgent(Agent):
         return v_trans
 
     @staticmethod
-    def translate(heading, velocity, rotation, max_velocity=.1):
-        phi = CXAgent.rotate(heading, rotation)
-        v = .333 * velocity + .667 * CXAgent.thrust(phi, max_velocity)
-        v -= DRAG * v
-        length = np.sqrt(np.square(v).sum())
-        if length > max_velocity:
-            v = max_velocity * v / length
-        return phi, v
-
-    @staticmethod
-    def rotate(heading, rotation):
-        return ((heading + rotation + np.pi) % (2 * np.pi)) - np.pi
-
-    @staticmethod
     def thrust(phi, acceleration):
         return np.array([np.sin(phi), np.cos(phi)]) * acceleration
 

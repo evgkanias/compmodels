@@ -57,6 +57,15 @@ class Agent(object):
         else:
             self.name = name
 
+    @property
+    def d_feeder(self):
+        # calculate the distance from the start position (feeder)
+        return np.sqrt(np.square(self.pos[:2] - self.feeder[:2]).sum())
+
+    @property
+    def d_nest(self):
+        return np.sqrt(np.square(self.pos[:2] - self.nest).sum())
+
     def reset(self):
         """
         Resets the agent at the feeder
@@ -117,10 +126,34 @@ class Agent(object):
     def world_snapshot(self, d_phi=0, width=None, height=None):
         x, y, z = self.pos
         phi = self.rot[1] + d_phi
-        img, draw = self.world.draw_panoramic_view(x, y, z, phi, update_sky=self.live_sky,
-                                                   include_ground=self.__per_ground, include_sky=self.__per_sky,
-                                                   width=width, length=width, height=height)
+        img = self.world.draw_panoramic_view(x, y, z, phi, update_sky=self.live_sky,
+                                             include_ground=self.__per_ground, include_sky=self.__per_sky,
+                                             width=width, length=width, height=height)
         return img
+
+    def update_state(self, heading, rotation=0):
+        phi, v = self.translate(heading, rotation, self.dx)
+
+        # update the agent position
+        self.pos[:] += np.array([v[0], -v[1], 0.])
+        self.rot[1] = np.pi - phi
+        self.log.add(self.pos[:3], self.rot[1])
+
+        return phi, v
+
+    @staticmethod
+    def translate(heading, rotation, acceleration):
+        phi = Agent.rotate(heading, rotation)
+        v = Agent.get_velocity(phi, acceleration)
+        return phi, v
+
+    @staticmethod
+    def rotate(heading, rotation):
+        return ((heading + rotation + np.pi) % (2 * np.pi)) - np.pi
+
+    @staticmethod
+    def get_velocity(phi, acceleration):
+        return np.array([np.sin(phi), np.cos(phi)]) * acceleration
 
 
 class Logger(object):
@@ -183,9 +216,13 @@ class Logger(object):
     def xyz(self, value):
         self.x, self.y, self.z = value.T
 
-    def set_stage(self, mode):
-        assert mode in ["training", "homing"]
+    @property
+    def stage(self):
+        return self.__stage
 
+    @stage.setter
+    def stage(self, mode):
+        assert mode in ["training", "homing"]
         self.__stage = mode
 
     def reset(self):

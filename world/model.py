@@ -6,7 +6,7 @@ from PIL import ImageDraw, Image
 from utils import shifted_datetime
 from ephem import Observer
 from sky import get_seville_observer, SkyModel
-from compoundeye import CompoundEye
+from compoundeye import AntEye
 from geometry import PolygonList, Polygon, Route
 from sphere import vec2sph
 
@@ -151,7 +151,7 @@ class World(object):
                 y1 = y0 + r * np.cos(phi)
                 draw.line(((x0, y0), (x1, y1)), fill=(int(r * 255), int(g * 255), int(b * 255)))
 
-        return image, draw
+        return image
 
     def draw_panoramic_view(self, x=None, y=None, z=None, r=0, width=None, length=None, height=None,
                             include_ground=1., include_sky=1., update_sky=True):
@@ -213,11 +213,11 @@ class World(object):
             draw.rectangle((0, 0, width, horizon), fill=rgb2gbuv(SKY_COLOUR, 255))
         else:
             # create a compound eye model for the sky pixels
-            self.eye = CompoundEye(ommatidia,
-                                   central_microvili=(0., 0.),
-                                   noise_factor=.1,
-                                   activate_dop_sensitivity=True)
-            # self.eye = CompoundEye(ommatidia)
+            # self.eye = CompoundEye(ommatidia,
+            #                        central_microvili=(0., 0.),
+            #                        noise_factor=.1,
+            #                        activate_dop_sensitivity=True)
+            self.eye = AntEye(ommatidia)
             self.eye.activate_pol_filters(self.__pol_filters)
             if update_sky:
                 self.sky.obs.date = self.datetime_now()
@@ -270,7 +270,7 @@ class World(object):
 
             # draw visible polygons
 
-        return image, draw
+        return image
 
     def datetime_now(self, init=False):
         date = shifted_datetime(self.day_shift, lower_limit=None, upper_limit=None)
