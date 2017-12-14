@@ -573,7 +573,7 @@ class Route(object):
     def from_file(cls, filename):
         data = np.load(filename)
         new_route = Route(
-            xs=data['x'], ys=data['y'], zs=data['z'], phis=data['phi'], condition=Hybrid.from_array(data['condition']),
+            xs=data['x'], ys=data['y'], zs=data['z'], phis=data['phi_z'], condition=Hybrid.from_array(data['condition']),
             agent_no=data['agent'], route_no=data['route'])
 
         return new_route  # type: Route
@@ -589,7 +589,7 @@ def route_like(r, xs=None, ys=None, zs=None, phis=None,
     if zs is not None:
         new_route.z = np.array(zs)
     if phis is not None:
-        new_route.phi = np.array(phis)
+        new_route.phi_z = np.array(phis)
     if condition is not None:
         new_route.condition = condition
     if agent_no is not None:

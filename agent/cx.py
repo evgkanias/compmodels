@@ -60,7 +60,7 @@ class CXAgent(Agent):
         if super(CXAgent, self).reset():
             # reset to the nest instead of the feeder
             self.pos[:2] = self.nest.copy()
-            self.rot[1] = (self.homing_routes[-1].phi[-2] + np.pi) % (2 * np.pi)
+            self.rot[1] = (self.homing_routes[-1].phi_z[-2] + np.pi) % (2 * np.pi)
             self._net.update = True
 
             return True
@@ -214,7 +214,7 @@ class CXAgent(Agent):
             flow = -get_sph_flow(
                 n_val=np.array(now).flatten(),
                 o_val=np.array(previous).flatten(),
-                rdir=np.array([self.world.eye.theta, self.world.eye.phi]).T,
+                rdir=np.array([self.world.eye.theta_z, self.world.eye.phi_z]).T,
                 rsensor=np.array([[0, self._net.tn_prefs], [0, -self._net.tn_prefs]])
             ).mean(axis=1)  # TODO: scale the value so that it fits better
             flow = self.dx * flow / np.sqrt(np.square(flow).sum())
@@ -269,7 +269,7 @@ class CXLogger(Logger):
         self.hist["flow0"] = []
         self.hist["v0"] = []
         self.hist["v1"] = []
-        self.hist["phi"] = []
+        self.hist["phi_z"] = []
         self.hist["sun"] = []
         self.hist["motor0"] = []
         self.hist["outbound_end"] = -1
@@ -384,7 +384,7 @@ if __name__ == "__main__":
 
             plt.subplot(5, 2, 3)
             plt.grid()
-            plt.plot(x, np.array(agent.log.hist["phi"]), label="phi")
+            plt.plot(x, np.array(agent.log.hist["phi_z"]), label="phi_z")
             plt.plot(x, np.array(agent.log.hist["sun"]), label="rel sun")
             plt.plot(x, np.ones_like(x) * world.sky.lon, label="abs sun")
             plt.legend()
@@ -392,7 +392,7 @@ if __name__ == "__main__":
             plt.xlim(xlim)
             plt.yticks([-np.pi, -np.pi/2, 0, np.pi/2, np.pi], ["-pi", "-pi/2", "0", "pi/2", "pi"])
             plt.ylim([-np.pi, np.pi])
-            plt.ylabel("phi")
+            plt.ylabel("phi_z")
 
             plt.subplot(5, 2, 5)
             plt.grid()

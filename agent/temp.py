@@ -59,7 +59,7 @@ class CXAgent(Agent):
         if super(CXAgent, self).reset():
             # reset to the nest instead of the feeder
             self.pos[:2] = self.nest.copy()
-            self.rot[1] = (self.homing_routes[-1].phi[-2] + np.pi) % (2 * np.pi)
+            self.rot[1] = (self.homing_routes[-1].phi_z[-2] + np.pi) % (2 * np.pi)
 
             self.hist["cpu1"] = []
             self.hist["cpu4"] = []
@@ -71,7 +71,7 @@ class CXAgent(Agent):
             self.hist["flow0"] = []
             self.hist["v0"] = []
             self.hist["v1"] = []
-            self.hist["theta"] = []
+            self.hist["theta_z"] = []
             self.hist["motor0"] = []
             self.hist["outbound_end"] = -1
 
@@ -139,7 +139,7 @@ class CXAgent(Agent):
             sun = self.read_sensor()
             v_trans = self.transform_velocity(sun, v.copy())
             flow = self._net.get_flow(sun, v_trans)
-            # flow = self._net.get_flow(__phi, v)
+            # flow = self._net.get_flow(__phi_z, v)
 
             # make a forward pass from the network
             motor = self._net(sun, flow)
@@ -153,7 +153,7 @@ class CXAgent(Agent):
             self.hist["flow0"].append(flow)
             self.hist["v0"].append(v)
             self.hist["v1"].append(v_trans)
-            self.hist["theta"].append(sun)
+            self.hist["theta_z"].append(sun)
             self.hist["tl2"].append(self._net.tl2)
             self.hist["cl1"].append(self._net.cl1)
             self.hist["cpu1"].append(self._net.cpu1)
@@ -225,13 +225,13 @@ class CXAgent(Agent):
             sun = self.read_sensor()
             v_trans = self.transform_velocity(sun, v.copy())
             flow = self._net.get_flow(sun, v_trans)
-            # flow = self._net.get_flow(__phi, v)
+            # flow = self._net.get_flow(__phi_z, v)
 
-            # d_phi = __phi - pphi
+            # d_phi = __phi_z - pphi
             # d_phi = (d_phi + np.pi) % (2 * np.pi) - np.pi
             # make a forward pass from the network
             motor = self._net(sun, flow)
-            # motor = self._net(__phi + np.sign(d_phi) * self.bump_shift, flow)
+            # motor = self._net(__phi_z + np.sign(d_phi) * self.bump_shift, flow)
             # print "D_phi: % 2.2f" % np.rad2deg(motor),
             if isinstance(sun, np.ndarray) and sun.size == 8:
                 sun = decode_sun(sun)[0]
@@ -241,7 +241,7 @@ class CXAgent(Agent):
             self.hist["flow0"].append(flow)
             self.hist["v0"].append(v)
             self.hist["v1"].append(v_trans)
-            self.hist["theta"].append(sun)
+            self.hist["theta_z"].append(sun)
             self.hist["tl2"].append(self._net.tl2)
             self.hist["cl1"].append(self._net.cl1)
             self.hist["cpu1"].append(self._net.cpu1)
@@ -422,7 +422,7 @@ if __name__ == "__main__":
 
             plt.subplot(5, 2, 3)
             plt.grid()
-            plt.plot(x, np.array(agent.hist["theta"]), label="theta")
+            plt.plot(x, np.array(agent.hist["theta_z"]), label="theta_z")
             v0 = np.arctan2(-np.array(agent.hist["v0"])[:, 1], np.array(agent.hist["v0"])[:, 0])
             v0 = (v0 + np.pi) % (2 * np.pi) - np.pi
             v1 = np.arctan2(-np.array(agent.hist["v1"])[:, 1], np.array(agent.hist["v1"])[:, 0])
@@ -434,7 +434,7 @@ if __name__ == "__main__":
             plt.xlim(xlim)
             plt.yticks([-np.pi, 0, np.pi], ["-pi", "0", "pi"])
             plt.ylim([-np.pi, np.pi])
-            plt.ylabel("__phi")
+            plt.ylabel("__phi_z")
 
             plt.subplot(5, 2, 5)
             plt.grid()

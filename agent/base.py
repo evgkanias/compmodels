@@ -77,7 +77,7 @@ class Agent(object):
 
         if len(self.homing_routes) > 0:
             self.pos[:2] = self.feeder.copy()
-            self.rot[1] = self.homing_routes[0].phi[0]
+            self.rot[1] = self.homing_routes[0].phi_z[0]
             return True
         else:
             # TODO: warn about the existence of the route

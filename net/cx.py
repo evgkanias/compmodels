@@ -559,10 +559,10 @@ if __name__ == "__main__":
         print "xy (reconstructed):", xy2.shape
         print "Is reconstruction accurate?", np.allclose(xy, xy2)
 
-        print "__phi:", phi.shape
+        print "__phi_z:", phi.shape
         x, y = xy[:, 0], xy[:, 1]
         phi2 = np.roll((np.arctan2(v[:, 0], -v[:, 1]) + np.pi) % (2 * np.pi) - np.pi, -1)
-        print "__phi (reconstructed):", phi2.shape
+        print "__phi_z (reconstructed):", phi2.shape
         print "Is reconstruction accurate?", np.allclose(phi[:-1], phi2[:-1])
 
         n_sensors = 200

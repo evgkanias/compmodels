@@ -249,7 +249,7 @@ class MBLogger(Logger):
         self.hist["en"] = []
         self.hist["ens"] = []
         self.hist["turn"] = []
-        self.hist["phi"] = []
+        self.hist["phi_z"] = []
 
 
 if __name__ == "__main__":

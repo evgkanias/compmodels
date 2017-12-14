@@ -71,7 +71,7 @@ class Hybrid(object):
         return Hybrid(d_x, d_phi)
 
     def __str__(self):
-        return "Hybrid: step=%.2f, __phi=%.2f" % (self.step, self.phi)
+        return "Hybrid: step=%.2f, __phi_z=%.2f" % (self.step, self.phi)
 
 
 class Stepper(Hybrid):
