@@ -62,7 +62,7 @@ class World(object):
         observer.date = self.datetime_now(init=True)
 
         # create and generate a sky instance
-        self.sky = SkyModel(observer=observer, nside=1)
+        self.sky = SkyModel(observer=observer)
         self.sky.generate()
 
         # create a compound eye model for the sky pixels
@@ -219,11 +219,11 @@ class World(object):
             #                        activate_dop_sensitivity=True)
             self.eye = AntEye(ommatidia)
             self.eye.activate_pol_filters(self.__pol_filters)
+            self.eye.sky = self.sky
             if update_sky:
                 self.sky.obs.date = self.datetime_now()
                 self.sky.generate()
-            self.eye.facing_direction = -r
-            self.eye.set_sky(self.sky)
+            self.eye.rotate(yaw=-r)
 
             pix = image.load()
             for i, c in enumerate(self.eye.L):

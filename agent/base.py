@@ -7,12 +7,12 @@ class Agent(object):
     FOV = (-np.pi/2, np.pi/2)
     __latest_agent_id__ = 0
 
-    def __init__(self, init_pos=np.zeros(3), init_rot=np.zeros(2), condition=Hybrid(),
+    def __init__(self, init_pos=np.zeros(3), init_rot=np.zeros(3), condition=Hybrid(),
                  live_sky=True, fov=None, rgb=False, visualiser=None, name=None):
         """
         :param init_pos: the initial position
         :type init_pos: np.ndarray
-        :param init_rot: the initial orientation
+        :param init_rot: the initial orientation (yaw, pitch, roll)
         :type init_rot: np.ndarray
         :param condition:
         :type condition: Hybrid
@@ -66,6 +66,30 @@ class Agent(object):
     def d_nest(self):
         return np.sqrt(np.square(self.pos[:2] - self.nest).sum())
 
+    @property
+    def yaw(self):
+        return self.rot[0]
+
+    @yaw.setter
+    def yaw(self, value):
+        self.rot[0] = value
+
+    @property
+    def pitch(self):
+        return self.rot[1]
+
+    @pitch.setter
+    def pitch(self, value):
+        self.rot[1] = value
+
+    @property
+    def roll(self):
+        return self.rot[2]
+
+    @roll.setter
+    def roll(self, value):
+        self.roll[2] = value
+
     def reset(self):
         """
         Resets the agent at the feeder
@@ -77,7 +101,7 @@ class Agent(object):
 
         if len(self.homing_routes) > 0:
             self.pos[:2] = self.feeder.copy()
-            self.rot[1] = self.homing_routes[0].phi_z[0]
+            self.yaw = self.homing_routes[0].phi[0]
             return True
         else:
             # TODO: warn about the existence of the route
@@ -125,7 +149,7 @@ class Agent(object):
 
     def world_snapshot(self, d_phi=0, width=None, height=None):
         x, y, z = self.pos
-        phi = self.rot[1] + d_phi
+        phi = self.yaw + d_phi
         img = self.world.draw_panoramic_view(x, y, z, phi, update_sky=self.live_sky,
                                              include_ground=self.__per_ground, include_sky=self.__per_sky,
                                              width=width, length=width, height=height)
@@ -136,8 +160,8 @@ class Agent(object):
 
         # update the agent position
         self.pos[:] += np.array([v[0], -v[1], 0.])
-        self.rot[1] = np.pi - phi
-        self.log.add(self.pos[:3], self.rot[1])
+        self.yaw = np.pi - phi
+        self.log.add(self.pos[:3], self.yaw)
 
         return phi, v
 

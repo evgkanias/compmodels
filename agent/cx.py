@@ -60,7 +60,7 @@ class CXAgent(Agent):
         if super(CXAgent, self).reset():
             # reset to the nest instead of the feeder
             self.pos[:2] = self.nest.copy()
-            self.rot[1] = (self.homing_routes[-1].phi_z[-2] + np.pi) % (2 * np.pi)
+            self.yaw = (self.homing_routes[-1].phi[-2] + np.pi) % (2 * np.pi)
             self._net.update = True
 
             return True
@@ -88,7 +88,7 @@ class CXAgent(Agent):
         rt = self.homing_routes[-1].reverse()  # type: Route
 
         # add a copy of the current route to the world to visualise the path
-        self.log.add(self.pos[:3], self.rot[1])
+        self.log.add(self.pos[:3], self.yaw)
         self.world.routes.append(
             route_like(rt, self.log.x, self.log.y, self.log.z, self.log.phi,
                        self.condition, agent_no=self.id + 1, route_no=1)
@@ -124,7 +124,7 @@ class CXAgent(Agent):
         if self.visualiser is not None:
             self.visualiser.reset()
 
-        phi, _ = self.update_state(np.pi - self.rot[1])
+        phi, _ = self.update_state(np.pi - self.yaw)
         # add a copy of the current route to the world to visualise the path
         self.world.routes.append(route_like(
             self.world.routes[0], self.log.x, self.log.y, self.log.z, self.log.phi,
@@ -136,7 +136,7 @@ class CXAgent(Agent):
         while self.d_nest > 0.1:
             if not self.step(phi, counter, start_time):
                 break
-            phi = np.pi - self.rot[1]
+            phi = np.pi - self.yaw
             counter += 1
 
         # remove the copy of the route from the world
@@ -158,8 +158,10 @@ class CXAgent(Agent):
         if use_flow:
             self.world_snapshot()
             self.log.snap.append(self.world.eye.L[:, 0].flatten())
-            flow = self.get_flow(self.log.snap[-1], self.log.snap[-2] if len(self.log.snap) > 1 else None)
-            # flow = self._net.get_flow(heading, v_trans)
+            # TODO: fix error in the optic-flow calculation
+            # flow = self.get_flow(self.log.snap[-1], self.log.snap[-2] if len(self.log.snap) > 1 else None)
+            v_trans = self.dx * np.array([np.sin(heading), np.cos(heading)])
+            flow = self._net.get_flow(heading, v_trans)
         else:
             flow = self.dx * np.ones(2) / np.sqrt(2)
 
@@ -214,7 +216,7 @@ class CXAgent(Agent):
             flow = -get_sph_flow(
                 n_val=np.array(now).flatten(),
                 o_val=np.array(previous).flatten(),
-                rdir=np.array([self.world.eye.theta_z, self.world.eye.phi_z]).T,
+                rdir=np.array([self.world.eye.theta_global, self.world.eye.phi_global]).T,
                 rsensor=np.array([[0, self._net.tn_prefs], [0, -self._net.tn_prefs]])
             ).mean(axis=1)  # TODO: scale the value so that it fits better
             flow = self.dx * flow / np.sqrt(np.square(flow).sum())
@@ -224,11 +226,14 @@ class CXAgent(Agent):
         return flow
 
     def read_sensor(self, decode=True):
-        self.compass.facing_direction = np.pi - self.rot[1]
+        self.compass.rotate(
+            yaw=self.yaw - self.compass.yaw,
+            pitch=self.pitch - self.compass.pitch
+        )
         if decode:
             # sun = self.compass.facing_direction - self.world.sky.lon
-            sun = self.compass(self.world.sky, decode=decode)[0]
-            sun = (sun + np.pi) % (2 * np.pi) - np.pi
+            sun = self.compass(self.world.sky, decode=decode)
+            sun = (sun[0] + np.pi) % (2 * np.pi) - np.pi
         else:
             sun = self.compass(self.world.sky, decode=decode)
 
@@ -269,7 +274,7 @@ class CXLogger(Logger):
         self.hist["flow0"] = []
         self.hist["v0"] = []
         self.hist["v1"] = []
-        self.hist["phi_z"] = []
+        self.hist["phi"] = []
         self.hist["sun"] = []
         self.hist["motor0"] = []
         self.hist["outbound_end"] = -1
@@ -286,9 +291,9 @@ if __name__ == "__main__":
 
     exps = [
         (False, False, False, None),    # fixed
-        (False, False, True, None),     # fixed-rgb
-        (False, False, False, None),    # fixed-no-pol
-        (False, False, True, None),     # fixed-no-pol-rgb
+        # (False, False, True, None),     # fixed-rgb
+        # (False, False, False, None),    # fixed-no-pol
+        # (False, False, True, None),     # fixed-no-pol-rgb
     ]
 
     enable_pol = False
@@ -354,7 +359,7 @@ if __name__ == "__main__":
             import matplotlib.pyplot as plt
             from PIL import Image
 
-            comp = agent.compass.facing_direction
+            comp = agent.compass.yaw
 
             T = len(agent.log.hist["flow0"])
             T_ob = agent.log.hist["outbound_end"] + 1
@@ -384,7 +389,7 @@ if __name__ == "__main__":
 
             plt.subplot(5, 2, 3)
             plt.grid()
-            plt.plot(x, np.array(agent.log.hist["phi_z"]), label="phi_z")
+            plt.plot(x, np.array(agent.log.hist["phi"]), label="phi_z")
             plt.plot(x, np.array(agent.log.hist["sun"]), label="rel sun")
             plt.plot(x, np.ones_like(x) * world.sky.lon, label="abs sun")
             plt.legend()
