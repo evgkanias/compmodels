@@ -91,7 +91,7 @@ class CXAgent(Agent):
         self.log.add(self.pos[:3], self.yaw)
         self.world.routes.append(
             route_like(rt, self.log.x, self.log.y, self.log.z, self.log.phi,
-                       self.condition, agent_no=self.id + 1, route_no=1)
+                       self.condition, agent_no=self.id - 1, route_no=1)
         )
         counter = 0         # count the steps
 
@@ -144,7 +144,7 @@ class CXAgent(Agent):
         return Route(self.log.x, self.log.y, self.log.z, self.log.phi, condition=self.condition,
                      agent_no=self.id, route_no=len(self.world.routes) + 1)
 
-    def step(self, phi, counter=0, start_time=None, use_flow=True):
+    def step(self, phi, counter=0, start_time=None, use_flow=False):
         # stop the loop when we close the visualisation window
         if self.visualiser is not None and self.visualiser.is_quit():
             return False
@@ -153,6 +153,7 @@ class CXAgent(Agent):
         if isinstance(sun, np.ndarray) and sun.size == 8:
             heading = decode_sun(sun)[0]
         else:
+            # heading = self.compass.sky.lon-self.yaw
             heading = sun
 
         if use_flow:
@@ -232,7 +233,7 @@ class CXAgent(Agent):
         )
         if decode:
             # sun = self.compass.facing_direction - self.world.sky.lon
-            sun = self.compass(self.world.sky, decode=decode)
+            sun = self.compass(self.world.sky, decode=decode).flatten()
             sun = (sun[0] + np.pi) % (2 * np.pi) - np.pi
         else:
             sun = self.compass(self.world.sky, decode=decode)
@@ -327,7 +328,7 @@ if __name__ == "__main__":
         i += 1
 
         agent = CXAgent(condition=condition, live_sky=update_sky,
-                        visualiser=Visualiser(),
+                        # visualiser=Visualiser(),
                         rgb=rgb, fov=fov, name=agent_name)
         agent.id = i + 1
         agent.set_world(world)
@@ -373,14 +374,15 @@ if __name__ == "__main__":
             xlim = [0, x[-1]]
             # xlim = [0, np.sum(y < 2)]
 
+            plt.figure("activation", figsize=(15, 10))
             plt.subplot(5, 2, 1)
             plt.grid()
-            plt.plot(x, np.array(agent.log.hist["flow0"])[:, 0], label=r"flow_x")
-            plt.plot(x, np.array(agent.log.hist["flow0"])[:, 1], label=r"flow_y")
+            # plt.plot(x, np.array(agent.log.hist["flow0"])[:, 0], label=r"flow_x")
+            # plt.plot(x, np.array(agent.log.hist["flow0"])[:, 1], label=r"flow_y")
             # plt.plot(x, np.array(agent.log.hist["v0"])[:, 0], label=r"v_x")
             # plt.plot(x, np.array(agent.log.hist["v0"])[:, 1], label=r"v_y")
-            plt.plot(x, np.array(agent.log.hist["v1"])[:, 0], label=r"v'_x")
-            plt.plot(x, np.array(agent.log.hist["v1"])[:, 1], label=r"v'_y")
+            plt.plot(x, np.array(agent.log.hist["v1"])[:, 0], label=r"v_x")
+            plt.plot(x, np.array(agent.log.hist["v1"])[:, 1], label=r"v_y")
             plt.legend()
             plt.xticks(xticks)  # , [""])
             plt.yticks([-agent.dx, 0., agent.dx])
