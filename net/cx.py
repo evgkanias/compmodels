@@ -192,7 +192,15 @@ class CX(Network):
 
     def __call__(self, *args, **kwargs):
         compass, flow = args[:2]
-        self.tl2, self.cl1, self.tb1, self.tn1, self.tn2, self.cpu4, self.cpu1 = self._fprop(compass, flow)
+        tl2 = kwargs.get("tl2", None)
+        cl1 = kwargs.get("cl1", None)
+        if tl2 is None and len(args) > 2:
+            tl2 = args[2]
+        if cl1 is None and len(args) > 3:
+            cl1 = args[3]
+        self.tl2, self.cl1, self.tb1, self.tn1, self.tn2, self.cpu4, self.cpu1 = self._fprop(
+            compass, flow, tl2=tl2, cl1=cl1
+        )
         return self.f_motor(self.cpu1)
 
     def f_tl2(self, theta):
@@ -362,13 +370,19 @@ class CX(Network):
         output = (motor[0] - motor[1])  # * .25  # to kill the noise a bit!
         return output
 
-    def _fprop(self, phi, flow):
+    def _fprop(self, phi, flow, tl2=None, cl1=None):
         if isinstance(phi, np.ndarray) and phi.size == 8:
-            tl2 = cl1 = np.tile(phi, 2)
+            if tl2 is None:
+                tl2 = np.tile(phi, 2)
+            if cl1 is None:
+                cl1 = np.tile(phi, 2)
+            tl2 = noisy_sigmoid(tl2[::-1], self.tl2_slope, self.tl2_bias, self.noise)
+            cl1 = noisy_sigmoid(cl1[::-1], self.cl1_slope, self.cl1_bias, self.noise)
+            tb1 = noisy_sigmoid(phi[::-1], 5.*self.tb1_slope, self.tb1_bias, self.noise)
         else:
             tl2 = self.f_tl2(phi)
             cl1 = self.f_cl1(tl2)
-        tb1 = self.f_tb1(cl1, self.tb1)
+            tb1 = self.f_tb1(cl1, self.tb1)
         tn1 = self.f_tn1(flow)
         tn2 = self.f_tn2(flow)
         cpu4 = self.f_cpu4(tb1, tn1, tn2)

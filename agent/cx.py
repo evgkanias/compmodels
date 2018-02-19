@@ -56,6 +56,14 @@ class CXAgent(Agent):
         if 'name' in kwargs.keys() and kwargs['name'] is None:
             self.name = "cx_agent_%02d" % self.id
 
+    @property
+    def sky(self):
+        return self.world.sky
+
+    @sky.setter
+    def sky(self, value):
+        self.world.sky = value
+
     def reset(self):
         if super(CXAgent, self).reset():
             # reset to the nest instead of the feeder
@@ -167,7 +175,10 @@ class CXAgent(Agent):
             flow = self.dx * np.ones(2) / np.sqrt(2)
 
         # make a forward pass from the network
-        motor = self._net(sun, flow)
+        if isinstance(sun, np.ndarray) and sun.size == 8:
+            motor = self._net(sun, flow, tl2=self.compass.tl2, cl1=self.compass.cl1)
+        else:
+            motor = self._net(sun, flow)
 
         phi, v = self.update_state(phi, rotation=motor)
         v_trans = self.transform_velocity(heading, v)
@@ -226,17 +237,19 @@ class CXAgent(Agent):
             # flow = self._net.get_flow(heading, v_trans)
         return flow
 
-    def read_sensor(self, decode=True):
+    def read_sensor(self, decode=False):
         self.compass.rotate(
             yaw=self.yaw - self.compass.yaw,
-            pitch=self.pitch - self.compass.pitch
+            # pitch=self.pitch - self.compass.pitch
         )
+        self.compass.refresh()
         if decode:
             # sun = self.compass.facing_direction - self.world.sky.lon
             sun = self.compass(self.world.sky, decode=decode).flatten()
             sun = (sun[0] + np.pi) % (2 * np.pi) - np.pi
         else:
-            sun = self.compass(self.world.sky, decode=decode)
+            sun = self.compass(self.world.sky, decode=decode).flatten()
+            # sun = (sun / np.absolute(sun).max() + 1.) / 2.
 
         return sun
 
@@ -289,6 +302,7 @@ if __name__ == "__main__":
     from world.utils import shifted_datetime
     from utils import create_agent_name
     from visualiser import Visualiser
+    from sky import get_seville_observer
 
     exps = [
         (False, False, False, None),    # fixed
@@ -302,7 +316,7 @@ if __name__ == "__main__":
     i = 0
 
     for update_sky, uniform_sky, rgb, rng in exps:
-        date = shifted_datetime()
+        date = datetime(2018, 6, 21, 12, 0, 0)  # shifted_datetime()
         if rng is None:
             rng = np.random.RandomState(2018)
         RND = rng
@@ -332,6 +346,10 @@ if __name__ == "__main__":
                         rgb=rgb, fov=fov, name=agent_name)
         agent.id = i + 1
         agent.set_world(world)
+        agent.compass.load_weights(name="cross-sensor-L060-V059-tilt")
+        observer = get_seville_observer()
+        observer.date = date
+        agent.sky.obs = observer
         print agent.homing_routes[0]
 
         if agent.visualiser is not None:
