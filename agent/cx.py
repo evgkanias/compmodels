@@ -346,7 +346,7 @@ if __name__ == "__main__":
                         rgb=rgb, fov=fov, name=agent_name)
         agent.id = i + 1
         agent.set_world(world)
-        agent.compass.load_weights(name="cross-sensor-L060-V059-tilt")
+        # agent.compass.load_weights(name="cross-sensor-L060-V059")
         observer = get_seville_observer()
         observer.date = date
         agent.sky.obs = observer
