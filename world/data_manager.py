@@ -16,7 +16,9 @@ def load_world(world_filename=WORLD_FILENAME, width=WIDTH, length=LENGTH, height
     for xs, ys, zs, col in zip(mat["X"], mat["Y"], mat["Z"], mat["colp"]):
         col[0] = col[2] = 0
         polygons.append(Polygon(xs, ys, zs, col))
-    observer = get_seville_observer()
+    observer = ephem.Observer()
+    observer.lat = '37.392509'
+    observer.lon = '-5.983877'
 
     return World(observer=observer, polygons=polygons, width=width, length=length, height=height)
 

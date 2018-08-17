@@ -1,14 +1,16 @@
 import numpy as np
 import numpy.linalg as la
+import ephem
+
 from matplotlib import cm
 from datetime import timedelta, datetime
 from PIL import ImageDraw, Image
 from utils import shifted_datetime
 from ephem import Observer
-from sky import get_seville_observer, SkyModel
-from compoundeye import AntEye
+# from sky import SkyModel
+# from compoundeye import AntEye
 from geometry import PolygonList, Polygon, Route
-from sphere import vec2sph
+# from sphere import vec2sph
 
 cmap = cm.get_cmap('brg')
 
@@ -55,7 +57,9 @@ class World(object):
 
         # default observer is in Seville (where the data come from)
         if observer is None:
-            observer = get_seville_observer()
+            observer = ephem.Observer()
+            observer.lat = '37.392509'
+            observer.lon = '-5.983877'
         self.day_shift = day_shift
         self.daylight_only = daylight_only
         self.__shifted = False

@@ -2,7 +2,8 @@ import numpy as np
 from copy import copy
 from numbers import Number
 from conditions import Hybrid
-from sphere import angle_between
+from sphere.distance import angle_between
+# from sphere import angle_between
 
 
 class PolygonList(list):
