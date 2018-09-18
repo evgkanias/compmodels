@@ -165,7 +165,7 @@ if __name__ == "__main__":
     for x, y, z, phi in world.routes[-1]:
 
         if vis.is_quit():
-            print "QUIT!"
+            print ("QUIT!")
             break
 
         img, _ = world.draw_panoramic_view(x, y, z, phi)
@@ -173,3 +173,5 @@ if __name__ == "__main__":
         en = nn(inp.flatten())
 
         vis.update_main(world_snapshot, caption="PN: %3d, KC: %3d, EN: %3d" % (nn.pn.sum(), nn.kc.sum(), en.sum()))
+
+    hello
