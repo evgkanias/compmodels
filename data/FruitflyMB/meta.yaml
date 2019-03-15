@@ -1,0 +1,174 @@
+008:
+  type: 'KC'
+  name: "α/β"
+005:
+  type: 'KC'
+  name: "α'/β'"
+011a:
+  type: 'MBON-glu'
+  name: "γ5β'2a"
+011c:
+  type: 'MBON-glu'
+  name: "β'2mp"
+242a:
+  type: 'MBON-ND'
+  name: "calyx"
+242b:
+  type: 'MBON-ND'
+  name: "calyx"
+018:
+  type: 'MBON-ach'
+  name: "α'2"
+112:
+  type: 'MBON-gaba'
+  name: "γ1pedc"
+112pt2:
+  type: 'MBON-gaba'
+  name: "γ1pedc"
+080:
+  type: 'MBON-ach'
+  name: "α2sc"
+542:
+  type: 'MBON-ach'
+  name: "α2p3p"
+542_a2p3pROI:
+  type: 'MBON-ach'
+  name: "α2p3p"
+077:
+  type: 'MBON-ach'
+  name: "γ2α'1"
+027:
+  type: 'MBON-ach'
+  name: "α'3"
+110b:
+  type: 'MBON-gaba'
+  name: "γ3/γ3β'1"
+025A:
+  type: 'PAM'
+  name: "β'1"
+320a:
+  type: 'PPL1'
+  name: "γ1pedc"
+194a:
+  type: 'PAM'
+  name: "β'1pedc"
+213a:
+  type: 'PAM'
+  name: "β2"
+301a:
+  type: 'PAM'
+  name: "β2β'2a"
+109:
+  type: 'PAM'
+  name: "β'2p"
+032:
+  type: 'PAM'
+  name: "β'2μ"
+032a:
+  type: 'PAM'
+  name: "β'2m"
+312:
+  type: 'PAM'
+  name: "γ4<γ1γ2"
+312a:
+  type: 'PAM'
+  name: "γ4<γ1γ2"
+047:
+  type: 'PAM'
+  name: "β'2p"
+047a:
+  type: 'PAM'
+  name: "β'2p"
+047b:
+  type: 'PAM'
+  name: "β'2p"
+296b:
+  type: 'PPL1'
+  name: "γ2α'1"
+058:
+  type: 'PPL1'
+  name: "α'2α2"
+058a:
+  type: 'PPL1'
+  name: "α'2α2"
+630a:
+  type: 'PPL1'
+  name: "α3"
+607:
+  type: 'KC'
+  name: "γd"
+131:
+  type: 'KC'
+  name: "γm"
+057:
+  type: 'MBON-gaba'
+  name: "β'1"
+399:
+  type: 'MBON-glu'
+  name: "β2β'2a"
+082:
+  type: 'MBON-ach'
+  name: "α3"
+050:
+  type: 'MBON-ach'
+  name: "α'1"
+110s:
+  type: 'MBON-gaba'
+  name: "γ3/γ3β'1"
+298:
+  type: 'MBON-glu'
+  name: "γ4>γ1γ2"
+433:
+  type: 'MBON-glu'
+  name: "β1>α"
+310:
+  type: 'MBON-glu'
+  name: "α1"
+043a:
+  type: 'PAM'
+  name: "α1"
+043b:
+  type: 'PAM'
+  name: "α1"
+194b:
+  type: 'PAM'
+  name: "β1pedc"
+194c:
+  type: 'PAM'
+  name: "β1pedc"
+063:
+  type: 'PAM'
+  name: "β1"
+063a:
+  type: 'PAM'
+  name: "β1"
+213b:
+  type: 'PAM'
+  name: "β2"
+301b:
+  type: 'PAM'
+  name: "β2β'2a"
+441:
+  type: 'PAM'
+  name: "α3"
+315:
+  type: 'PAM'
+  name: "α5"
+296a:
+  type: 'PPL1'
+  name: "γ2α'1"
+630b:
+  type: 'PPL1'
+  name: "α3"
+630c:
+  type: 'PPL1'
+  name: "α3"
+304:
+  type: 'PPL1'
+  name: "α'3"
+304a:
+  type: 'PPL1'
+  name: "α'3"
+320b:
+  type: 'PPL1'
+  name: "γ1pedc"
