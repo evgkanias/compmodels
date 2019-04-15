@@ -5,6 +5,8 @@ import matplotlib as mpl
 import numpy as np
 import seaborn as sns
 
+from fruitfly import DataFrame
+
 eps = np.finfo(float).eps
 
 
@@ -16,12 +18,12 @@ def plot_matrix(M, title="", labels1=None, labels2=None, vmin=-1., vmax=1., verb
     ax2 = ax1.twinx()
 
     ax1.imshow(M, vmin=vmin, vmax=vmax, cmap="coolwarm", origin='lower', aspect="equal")
-    plt.xlim([0, M.shape[1]])
-    plt.ylim([0, M.shape[1]])
+    plt.xlim([-.5, M.shape[1]-.5])
+    plt.ylim([-.5, M.shape[1]-.5])
 
     ax2.imshow(M, vmin=vmin, vmax=vmax, cmap="coolwarm", origin='lower', aspect="equal")
-    plt.xlim([0, M.shape[1]])
-    plt.ylim([0, M.shape[1]])
+    plt.xlim([-.5, M.shape[1]-.5])
+    plt.ylim([-.5, M.shape[1]-.5])
 
     types = np.unique(labels2)
     names = np.unique(labels1)
@@ -31,14 +33,14 @@ def plot_matrix(M, title="", labels1=None, labels2=None, vmin=-1., vmax=1., verb
             q = np.argwhere(np.all([labels1 == nm, labels2 == tp], axis=0))
             if len(q) == 0:
                 continue
-            x0 = np.max(q) + 1
-            ax2.plot([0, M.shape[1]], [x0, x0], 'b--', lw=.5)
-            ax2.plot([x0, x0], [0, M.shape[1]], 'b--', lw=.5)
+            x0 = np.max(q) + .5
+            ax2.plot([-.5, M.shape[1]-.5], [x0, x0], 'b--', lw=.5)
+            ax2.plot([x0, x0], [-.5, M.shape[1]-.5], 'b--', lw=.5)
             nm_ticks.append([q.mean(), nm])
         q = np.argwhere(labels2 == tp)
-        x0 = np.max(q) + 1
-        ax2.plot([0, M.shape[1]], [x0, x0], 'k-', lw=1)
-        ax2.plot([x0, x0], [0, M.shape[1]], 'k-', lw=1)
+        x0 = np.max(q) + .5
+        ax2.plot([-.5, M.shape[1]-.5], [x0, x0], 'k-', lw=1)
+        ax2.plot([x0, x0], [-.5, M.shape[1]-.5], 'k-', lw=1)
         tp_ticks.append([q.mean(), tp])
 
     tp_ticks = np.array(tp_ticks)
@@ -60,75 +62,91 @@ def plot_matrix(M, title="", labels1=None, labels2=None, vmin=-1., vmax=1., verb
     plt.tight_layout()
 
 
-def corr_matrix(df, mode="all", show=True):
-    mask = np.zeros(df.T[5:].shape[0], dtype=bool)
+def corr_matrix(df, mode="all", diff=False, shock=True, show=True):
+
+    df = DataFrame.normalise(df.astype(float))
+
+    if diff:
+        df1 = df.T[:-200].T
+        df2 = df.T[200:].T
+        df1.columns = [i for i, x in enumerate(df1.columns)]
+        df2.columns = [i for i, x in enumerate(df2.columns)]
+        df = df2.sub(df1)
+
+    mask = np.zeros(df.T.shape[0], dtype=bool)
     if mode is not list:
         mode = [mode]
     if None in mode or "all" in mode:
         mask[:] = 1
-    if "pretrain" in mode or "trial-1" in mode:
-        mask[:200] = 1
     if "training" in mode:
-        mask[200:-300] = 1
-    if "reversal" in mode:
-        mask[-200:] = 1
+        mask[-1500:-300] = 1
+    if "pretrain" in mode or "trial-1" in mode:
+        mask[:-1500] = 1
     if "trial-2" in mode:
-        mask[200:400] = 1
+        mask[-1500:-1300] = 1
     if "trial-3" in mode:
-        mask[400:600] = 1
+        mask[-1300:-1100] = 1
     if "trial-4" in mode:
-        mask[600:800] = 1
+        mask[-1100:-900] = 1
     if "trial-5" in mode:
-        mask[800:1000] = 1
+        mask[-900:-700] = 1
     if "trial-6" in mode:
-        mask[1000:1200] = 1
+        mask[-700:-500] = 1
     if "trial-7" in mode:
-        mask[1300:1500] = 1
-    if "trial-8" in mode:
-        mask[1500:1700] = 1
-    if "iter-1" in mode:
-        mask[0:100] = 1
-    if "iter-2" in mode:
-        mask[100:200] = 1
+        mask[-500:-300] = 1
+    if "reversal" in mode or "trial-8" in mode:
+        mask[-200:] = 1
+    if "iter-1" in mode and not diff:
+        mask[:-1600] = 1
+    if "iter-2" in mode and not diff:
+        mask[-1600:-1500] = 1
     if "iter-3" in mode:
-        mask[200:300] = 1
+        mask[-1500:-1400] = 1
     if "iter-4" in mode:
-        mask[300:400] = 1
+        mask[-1400:-1300] = 1
     if "iter-5" in mode:
-        mask[400:500] = 1
+        mask[-1300:-1200] = 1
     if "iter-6" in mode:
-        mask[500:600] = 1
+        mask[-1200:-1100] = 1
     if "iter-7" in mode:
-        mask[600:700] = 1
+        mask[-1100:-1000] = 1
     if "iter-8" in mode:
-        mask[700:800] = 1
+        mask[-1000:-900] = 1
     if "iter-9" in mode:
-        mask[800:900] = 1
+        mask[-900:-800] = 1
     if "iter-10" in mode:
-        mask[900:1000] = 1
+        mask[-800:-700] = 1
     if "iter-11" in mode:
-        mask[1000:1100] = 1
+        mask[-700:-600] = 1
     if "iter-12" in mode:
-        mask[1100:1200] = 1
+        mask[-600:-500] = 1
     if "iter-13" in mode:
-        mask[1200:1300] = 1
+        mask[-500:-400] = 1
     if "iter-14" in mode:
-        mask[1300:1400] = 1
+        mask[-400:-300] = 1
     if "iter-15" in mode:
-        mask[1400:1500] = 1
+        mask[-300:-200] = 1
     if "iter-16" in mode:
-        mask[1500:1600] = 1
+        mask[-200:-100] = 1
     if "iter-17" in mode:
-        mask[1600:1700] = 1
+        mask[-100:] = 1
 
-    corr = df.T[5:].astype(float).loc[mask].corr()
-    names = df['name']
-    types = df['type']
+    if not shock:
+        cols = np.array(([1] * 44 + [0] * 56) * 17, dtype=bool)
+        if diff:
+            cols = cols[:-200]
+        mask = np.all([mask, cols], axis=0)
+
+    names = df.index.levels[1][df.index.codes[1]]
+    types = df.index.levels[0][df.index.codes[0]]
+
+    corr = df.T.astype(float).loc[mask].corr()
     corr.columns = names
     corr.index = names
 
     if show:
-        plot_matrix(corr, title="cc-matrix-%s" % mode[0], vmin=-1., vmax=1.,
+        plot_matrix(corr, title="cc-matrix-%s%s%s" % (mode[0], "" if shock else "-noshock", "-diff" if diff else ""),
+                    vmin=-1., vmax=1.,
                     labels1=names.values.astype('unicode'),
                     labels2=types.values.astype('unicode'))
         plt.show()
@@ -136,30 +154,129 @@ def corr_matrix(df, mode="all", show=True):
     return corr
 
 
-def plot_covariance(plot_pca_2d=False):
+def cross_corr_matrix(df, mode1="all", mode2="all", diff=False, shock=True, show=True):
 
-    gens = FruitflyData()
+    df = DataFrame.normalise(df.astype(float))
 
-    data_dict = gens.dataset(gens)
-    data_dict = sort(data_dict, ['type', 'name'])
+    if diff:
+        df1 = df.T[:-200].T
+        df2 = df.T[200:].T
+        df1.columns = [i for i, x in enumerate(df1.columns)]
+        df2.columns = [i for i, x in enumerate(df2.columns)]
+        df = df2.sub(df1)
 
-    x = data_dict['traces'].reshape((-1, data_dict['traces'].shape[-1]))
-    x_max = x.max(axis=1)
-    x = (x.T / (x_max + eps)).T
+    mask1 = np.zeros(df.T.shape[0], dtype=bool)
+    mask2 = np.zeros_like(mask1)
 
-    C = x.T.dot(x) / x.shape[0]
+    for mode, mask in zip([mode1, mode2], [mask1, mask2]):
+        if mode is not list:
+            mode = [mode]
+        if None in mode or "all" in mode:
+            mask[:] = 1
+        if "training" in mode:
+            mask[-1500:-300] = 1
+        if "pretrain" in mode or "trial-1" in mode:
+            mask[:-1500] = 1
+        if "trial-2" in mode:
+            mask[-1500:-1300] = 1
+        if "trial-3" in mode:
+            mask[-1300:-1100] = 1
+        if "trial-4" in mode:
+            mask[-1100:-900] = 1
+        if "trial-5" in mode:
+            mask[-900:-700] = 1
+        if "trial-6" in mode:
+            mask[-700:-500] = 1
+        if "trial-7" in mode:
+            mask[-500:-300] = 1
+        if "reversal" in mode or "trial-8" in mode:
+            mask[-200:] = 1
+        if "iter-1" in mode and not diff:
+            mask[:-1600] = 1
+        if "iter-2" in mode and not diff:
+            mask[-1600:-1500] = 1
+        if "iter-3" in mode:
+            mask[-1500:-1400] = 1
+        if "iter-4" in mode:
+            mask[-1400:-1300] = 1
+        if "iter-5" in mode:
+            mask[-1300:-1200] = 1
+        if "iter-6" in mode:
+            mask[-1200:-1100] = 1
+        if "iter-7" in mode:
+            mask[-1100:-1000] = 1
+        if "iter-8" in mode:
+            mask[-1000:-900] = 1
+        if "iter-9" in mode:
+            mask[-900:-800] = 1
+        if "iter-10" in mode:
+            mask[-800:-700] = 1
+        if "iter-11" in mode:
+            mask[-700:-600] = 1
+        if "iter-12" in mode:
+            mask[-600:-500] = 1
+        if "iter-13" in mode:
+            mask[-500:-400] = 1
+        if "iter-14" in mode:
+            mask[-400:-300] = 1
+        if "iter-15" in mode:
+            mask[-300:-200] = 1
+        if "iter-16" in mode:
+            mask[-200:-100] = 1
+        if "iter-17" in mode:
+            mask[-100:] = 1
+
+    if not shock:
+        cols = np.array(([1] * 44 + [0] * 56) * 17, dtype=bool)
+        if diff:
+            cols = cols[:-200]
+        mask1 = np.all([mask1, cols], axis=0)
+        mask2 = np.all([mask2, cols], axis=0)
+
+    names = df.index.levels[1][df.index.codes[1]]
+    types = df.index.levels[0][df.index.codes[0]]
+
+    df1 = df.T.astype(float).loc[mask1]  # type: pd.DataFrame
+    df2 = df.T.astype(float).loc[mask2]  # type: pd.DataFrame
+    df1.columns = names
+    df1.index = np.arange(100) if shock else np.arange(44)
+    df2.columns = names
+    df2.index = np.arange(100) if shock else np.arange(44)
+    corr = pd.concat([df1, df2], axis=1).corr()
+    corr = corr[df1.shape[1]:].T[df2.shape[1]:].T
+
+    # corr.columns = names
+    # corr.index = names
+
+    if show:
+        plot_matrix(corr, title="cc-matrix-%s-vs-%s%s" % (mode1, mode2, "-diff" if diff else ""),
+                    vmin=-1., vmax=1.,
+                    labels1=names.values.astype('unicode'),
+                    labels2=types.values.astype('unicode'))
+        plt.show()
+
+    return corr
+
+
+def plot_covariance(df, plot_pca_2d=False):
+
+    xs = df.T[5:].astype(float)
+    x_max = xs.max(axis=1)
+    xs = (xs.T / (x_max + eps)).T
+
+    C = xs.T.dot(xs) / xs.shape[0]
     v = .02
     plot_matrix(C, title="fly-covariance-matrix",
-                labels1=data_dict['name'], labels2=data_dict['type'], vmin=-v, vmax=v, verbose=True)
+                labels1=df['name'], labels2=df['type'], vmin=-v, vmax=v, verbose=True)
 
     if plot_pca_2d:
         from sklearn.decomposition import PCA
 
-        pca = PCA(x.shape[1], whiten=False)
-        pca.fit(x)
-        x_proj = pca.transform(x)
+        pca = PCA(xs.shape[1], whiten=False)
+        pca.fit(xs)
+        x_proj = pca.transform(xs)
 
-        types = np.unique(data_dict['type'])
+        types = np.unique(df['type'])
 
         plt.figure("pca-types", figsize=(9, 9))
         colours = {
@@ -172,7 +289,7 @@ def plot_covariance(plot_pca_2d=False):
             "PPL1": "magenta"
         }
         for t in types:
-            x0 = x_proj.T[data_dict['type'] == t]
+            x0 = x_proj.T[df['type'] == t]
             plt.scatter(x0[:, 0], x0[:, 1], color=colours[t], marker=".", label=t)
         plt.xlim([-.25, .25])
         plt.ylim([-.25, .25])
@@ -188,7 +305,7 @@ def plot_covariance(plot_pca_2d=False):
         }
 
         for loc in np.sort(colours.keys()):
-            q = np.where([loc in name for name in data_dict['name']])
+            q = np.where([loc in name for name in df['name']])
             x0 = x_proj.T[q]
             plt.scatter(x0[:, 0], x0[:, 1], color=colours[loc], marker=".", label=loc)
         plt.xlim([-.25, .25])
@@ -198,63 +315,75 @@ def plot_covariance(plot_pca_2d=False):
     plt.show()
 
 
-def plot_mutual_information(normalise=False):
-    import matplotlib.pyplot as plt
+def plot_mutual_information(df, diff=False):
     from sklearn.feature_selection import mutual_info_regression
 
-    dataset = FruitflyData()
-    # gens = dataset.slice(types=["DAN", "MBON"], loc=u"\u03b1'")
+    if diff:
+        df1 = df.T[:-200].T
+        df2 = df.T[200:].T
+        df1.columns = [i for i, x in enumerate(df1.columns)]
+        df2.columns = [i for i, x in enumerate(df2.columns)]
+        df = df2.sub(df1)
 
-    data_dict = FruitflyData.dataset(dataset)
-    data_dict = sort(data_dict, ['type', 'name'])
+    xs = df.T.astype(float)
 
-    xs = data_dict['traces'].reshape((-1, data_dict['traces'].shape[-1]))
-    if normalise:
-        x_max = xs.max(axis=1)
-        xs = (xs.T / (x_max + eps)).T
-
+    names = df.index.levels[1][df.index.codes[1]]
+    types = df.index.levels[0][df.index.codes[0]]
     MI = np.zeros((xs.shape[1], xs.shape[1]), dtype=float)
-    for i, x in enumerate(xs.T):
-        print i,
-        for j, y in enumerate(xs.T):
-            m = mutual_info_regression(x[..., np.newaxis], y)[0]
-            print "%.2f" % m,
-            MI[i, j] = m
-        print ''
+    try:
+        MI = np.load("mi%s.npz" % ("-diff" if diff else ""))['MI']
+    except IOError:
+        for i, x in enumerate(xs.T.values):
+            print i,
+            for j, y in enumerate(xs.T.values):
+                m = mutual_info_regression(x[..., np.newaxis], y)[0]
+                print "%.2f" % m,
+                MI[i, j] = m
+            print ''
+        np.savez_compressed("mi%s.npz" % ("-diff" if diff else ""), MI=MI)
 
-    np.savez_compressed("mi%s.npz" % ("-norm" if normalise else ""), MI=MI)
+    MI = pd.DataFrame(MI, index=names, columns=types)
 
     v = .5
-    plot_matrix(MI, title="fly-mutual-information" + ("-norm" if normalise else ""),
-                labels1=data_dict['name'], labels2=data_dict['type'], vmin=-v, vmax=v)
+    plot_matrix(MI, title="fly-mutual-information%s" % ("-diff" if diff else ""),
+                labels1=names.values.astype('unicode'),
+                labels2=types.values.astype('unicode'), vmin=-v, vmax=v)
     plt.show()
 
 
-def plot_f_score(normalise=False):
-    import matplotlib.pyplot as plt
+def plot_f_score(df, diff=False):
     from sklearn.feature_selection import f_regression
 
-    data_dict = sort(FruitflyData.dataset(FruitflyData()), ['type', 'name'])
+    if diff:
+        df1 = df.T[:-200].T
+        df2 = df.T[200:].T
+        df1.columns = [i for i, x in enumerate(df1.columns)]
+        df2.columns = [i for i, x in enumerate(df2.columns)]
+        df = df2.sub(df1)
 
-    xs = data_dict['traces'].reshape((-1, data_dict['traces'].shape[-1]))
-    if normalise:
-        x_max = xs.max(axis=1)
-        xs = (xs.T / (x_max + eps)).T
+    xs = df.T.astype(float)
 
+    names = df.index.levels[1][df.index.codes[1]]
+    types = df.index.levels[0][df.index.codes[0]]
     F = np.zeros((xs.shape[1], xs.shape[1]), dtype=float)
-    for i, x in enumerate(xs.T):
-        print i,
-        for j, y in enumerate(xs.T):
-            f = f_regression(x[..., np.newaxis], y)[0]
-            print "%.2f" % f,
-            F[i, j] = f
-        print ''
+    try:
+        F = np.load("f-score%s.npz" % ("-diff" if diff else ""))['F']
+    except IOError:
+        for i, x in enumerate(xs.T.values):
+            print i,
+            for j, y in enumerate(xs.T.values):
+                f = f_regression(x[..., np.newaxis], y)[0]
+                print "%.2f" % f,
+                F[i, j] = f
+            print ''
+        np.savez_compressed("f-score%s.npz" % ("-diff" if diff else ""), F=F)
 
-    np.savez_compressed("f-score%s.npz" % ("-norm" if normalise else ""), F=F)
+    F = pd.DataFrame(F, index=names, columns=types)
 
-    v = .5
-    plot_matrix(F, title="fly-f-score" + ("-norm" if normalise else ""),
-                labels1=data_dict['name'], labels2=data_dict['type'], vmin=-v, vmax=v)
+    v = 2000.
+    plot_matrix(F, title="fly-f-score%s" % ("-diff" if diff else ""),
+                labels1=names.values.astype('unicode'),
+                labels2=types.values.astype('unicode'), vmin=-v, vmax=v)
     plt.show()
 
 
@@ -279,55 +408,211 @@ def pairplot(df, cols=None):
     plt.show()
 
 
-def plot_corr_over_time(df):
+def plot_corr_over_time(df, shock=True):
 
     cors = []
-    for i in xrange(17):
-        c = corr_matrix(df.sort_values(by=['type', 'name']), mode="iter-%d" % (i + 1), show=False)
-        cors.append(np.sqrt(np.sum(np.sum(np.square(c)))))
+    for i in xrange(0, 17):
+        c = corr_matrix(df.sort_index(axis=0, level=['type', 'name']), mode="iter-%d" % (i + 1),
+                        shock=shock, show=False)
+        # cors.append(np.sqrt(np.sum(np.sum(np.square(c)))))
+        cors.append(np.sum(np.sum(np.square(c)))/float(c.size))
 
-    plt.figure("corr-over-time", figsize=(10, 10))
+    plt.figure("corr-over-time%s" % ("" if shock else "-noshock"), figsize=(10, 10))
 
     cors = np.array(cors)
 
-    plt.plot(np.arange(9), cors[0::2], lw=2, label="CS-")
-    plt.plot(np.arange(8) + .5, cors[1::2], lw=2, label="CS+")
+    plt.plot(np.arange(9), cors[0::2], "C0-", lw=2, label="CS-")
+    plt.plot(np.arange(8) + .5, cors[1::2], "C1-", lw=2, label="CS+")
     plt.plot([1.5, 2.5, 3.5, 4.5, 5.5, 7, 8], cors[[3, 5, 7, 9, 11, 14, 16]], 'ro', lw=1)
+
+    cors = []
+    for i in xrange(2, 17):
+        c = corr_matrix(df.sort_index(axis=0, level=['type', 'name']), mode="iter-%d" % (i + 1),
+                        shock=shock, diff=True, show=False)
+        # cors.append(np.sqrt(np.sum(np.sum(np.square(c)))))
+        cors.append(np.sum(np.sum(np.square(c)))/float(c.size))
+
+    plt.figure("corr-over-time%s" % ("" if shock else "-noshock"), figsize=(10, 10))
+
+    cors = np.array(cors)
+
+    plt.plot(np.arange(1, 9), cors[0::2], "C0--", lw=2, label="CS- (change)")
+    plt.plot(np.arange(1, 8) + .5, cors[1::2], "C1--", lw=2, label="CS+ (change)")
+    plt.plot([1.5, 2.5, 3.5, 4.5, 5.5, 7, 8], cors[[1, 3, 5, 7, 9, 12, 14]], 'ro', lw=1)
 
     plt.xticks(np.arange(0, 8.5, .5), [
         "1-", "1+", "2-", "2+", "3-", "3+", "4-", "4+", "5-", "5+", "6-", "6+", "7-", "7+", "8-", "8+", "9-"])
-    plt.ylim([170, 255])
+    plt.ylim([0, .5])
+    plt.xlim([-.5, 8.5])
     plt.xlabel("Trial")
-    plt.ylabel(r'$\sqrt{\sum{C^2}}$')
+    plt.ylabel(r'$\frac{1}{N^2}\sum{C^2}$')
     plt.legend()
 
 
-def plot_traces(df, title="traces", vmin=-20, vmax=20, normalise=False, verbose=False):
+def plot_cross_corr_over_time(df, shock=True):
+
+    cors = []
+    for i in xrange(0, 15):
+        c = cross_corr_matrix(df.sort_index(axis=0, level=['type', 'name']), shock=shock,
+                              mode1="iter-%d" % (i + 1), mode2="iter-%d" % (i + 3), show=False)
+        # cors.append(np.sqrt(np.sum(np.sum(np.square(c)))))
+        cors.append(np.sum(np.sum(np.square(c)))/float(c.size))
+
+    plt.figure("cross-corr-over-time%s" % ("" if shock else "-noshock"), figsize=(10, 10))
+
+    cors = np.array(cors)
+
+    plt.plot(np.arange(8), cors[0::2], "C0-", lw=2, label="CS-")
+    plt.plot(np.arange(7) + .5, cors[1::2], "C1-", lw=2, label="CS+")
+    plt.plot([0.5, 1.5, 2.5, 3.5, 4.5, 6, 7], cors[[1, 3, 5, 7, 9, 12, 14]], 'ro', lw=1)
+
+    cors = []
+    for i in xrange(2, 15):
+        c = cross_corr_matrix(df.sort_index(axis=0, level=['type', 'name']), diff=True, shock=shock,
+                              mode1="iter-%d" % (i + 1), mode2="iter-%d" % (i + 3), show=False)
+        # cors.append(np.sqrt(np.sum(np.sum(np.square(c)))))
+        cors.append(np.sum(np.sum(np.square(c)))/float(c.size))
+
+    cors = np.array(cors)
+
+    plt.plot(np.arange(1, 8), cors[0::2], "C0--", lw=2, label="CS- (change)")
+    plt.plot(np.arange(1, 7) + .5, cors[1::2], "C1--", lw=2, label="CS+ (change)")
+    plt.plot([1.5, 2.5, 3.5, 4.5, 6, 7], cors[[1, 3, 5, 7, 10, 12]], 'ro', lw=1)
+
+    plt.xticks(np.arange(0, 7.5, .5), [
+        "1- vs 2-", "1+ vs 2+", "2- vs 3-", "2+ vs 3+", "3- vs 4-", "3+ vs 4+", "4- vs 5-", "4+ vs 5+", "5- vs 6-",
+        "5+ vs 6+", "6- vs 7-", "6+ vs 7+", "7- vs 8-", "7+ vs 8+", "8- vs 9-"], rotation="vertical")
+    plt.ylim([0, .5])
+    plt.xlim([-.5, 7.5])
+    plt.xlabel("Trial")
+    plt.ylabel(r'$\frac{1}{N^2}\sum{C^2}$')
+    plt.legend()
+
+
+def plot_iter_corr_matrix(df, sort_by=None, ascending=None, diff=False, shock=True):
+    # df = DataFrame.normalise(df.astype(float))
+
+    if sort_by is None:
+        sort_by = ['trial', 'condition']
+    if ascending is None:
+        ascending = [True, False]
+
+    if diff:
+        df1 = df.T[:-200].T
+        df2 = df.T[200:].T
+        df1.columns = [i for i, x in enumerate(df1.columns)]
+        df2.columns = [i for i, x in enumerate(df2.columns)]
+        df = df2.sub(df1)
+
+    if not shock:
+        cols = np.array(([1] * 44 + [0] * 56) * 17, dtype=bool)
+        if diff:
+            cols = cols[:-200]
+        df = df.T.loc[cols].T
+
+    df = df.T.reset_index(level='shock', drop=True)
+    df = df.reorder_levels(['trial', 'condition', 'time'], axis=0)
+    df = df.unstack([-1]).sort_index(axis=0, by=sort_by, ascending=ascending)
+
+    trials = df.index.levels[0][df.index.codes[0]]
+    conditions = df.index.levels[1][df.index.codes[1]]
+    corr = df.T.astype(float).corr()
+
+    plt.figure("iter-corr-matrix%s" % ("" if shock else "-noshock"), figsize=(5.4, 5))
+    plt.imshow(corr, vmin=-1, vmax=1, cmap="coolwarm", origin='lower', aspect="equal")
+    if sort_by[0] == 'trial':
+        plt.plot([-.5, 16.5], [3, 3], 'r--')
+        plt.plot([-.5, 16.5], [5, 5], 'r--')
+        plt.plot([-.5, 16.5], [7, 7], 'r--')
+        plt.plot([-.5, 16.5], [9, 9], 'r--')
+        plt.plot([-.5, 16.5], [11, 11], 'r--')
+        plt.plot([-.5, 16.5], [14, 14], 'r--')
+        plt.plot([-.5, 16.5], [16, 16], 'r--')
+        plt.plot([3, 3], [-.5, 16.5], 'r--')
+        plt.plot([5, 5], [-.5, 16.5], 'r--')
+        plt.plot([7, 7], [-.5, 16.5], 'r--')
+        plt.plot([9, 9], [-.5, 16.5], 'r--')
+        plt.plot([11, 11], [-.5, 16.5], 'r--')
+        plt.plot([14, 14], [-.5, 16.5], 'r--')
+        plt.plot([16, 16], [-.5, 16.5], 'r--')
+        plt.plot([-.5, 16.5], [1.5, 1.5], 'k-')
+        plt.plot([-.5, 16.5], [11.5, 11.5], 'k-')
+        plt.plot([-.5, 16.5], [12.5, 12.5], 'k-')
+        plt.plot([1.5, 1.5], [-.5, 16.5], 'k-')
+        plt.plot([11.5, 11.5], [-.5, 16.5], 'k-')
+        plt.plot([12.5, 12.5], [-.5, 16.5], 'k-')
+        plt.plot([11.5, 12.5] * 9, np.linspace(-.5, 16.5, 18), 'k--')
+        plt.plot(np.linspace(-.5, 16.5, 18), [12.5, 11.5] * 9, 'k--')
+    elif sort_by[0] == 'condition':
+        plt.plot([-.5, 16.5], [10, 10], 'r--')
+        plt.plot([-.5, 16.5], [11, 11], 'r--')
+        plt.plot([-.5, 16.5], [12, 12], 'r--')
+        plt.plot([-.5, 16.5], [13, 13], 'r--')
+        plt.plot([-.5, 16.5], [14, 14], 'r--')
+        plt.plot([-.5, 16.5], [8, 8], 'r--')
+        plt.plot([-.5, 16.5], [7, 7], 'r--')
+        plt.plot([10, 10], [-.5, 16.5], 'r--')
+        plt.plot([11, 11], [-.5, 16.5], 'r--')
+        plt.plot([12, 12], [-.5, 16.5], 'r--')
+        plt.plot([13, 13], [-.5, 16.5], 'r--')
+        plt.plot([14, 14], [-.5, 16.5], 'r--')
+        plt.plot([8, 8], [-.5, 16.5], 'r--')
+        plt.plot([7, 7], [-.5, 16.5], 'r--')
+        plt.plot([8.5, 8.5], [-.5, 16.5], 'k-')
+        plt.plot([-.5, 16.5], [8.5, 8.5], 'k-')
+        plt.plot([6.5, 6.5], [-.5, 16.5], 'k--')
+        plt.plot([5.5, 5.5], [-.5, 16.5], 'k--')
+        plt.plot([0.5, 0.5], [-.5, 16.5], 'k--')
+        plt.plot([9.5, 9.5], [-.5, 16.5], 'k--')
+        plt.plot([14.5, 14.5], [-.5, 16.5], 'k--')
+        plt.plot([-.5, 16.5], [6.5, 6.5], 'k--')
+        plt.plot([-.5, 16.5], [5.5, 5.5], 'k--')
+        plt.plot([-.5, 16.5], [0.5, 0.5], 'k--')
+        plt.plot([-.5, 16.5], [9.5, 9.5], 'k--')
+        plt.plot([-.5, 16.5], [14.5, 14.5], 'k--')
+        plt.plot([6.5, 5.5] * 9, np.linspace(-.5, 16.5, 18), 'k--')
+        plt.plot(np.linspace(-.5, 16.5, 18), [5.5, 6.5] * 9, 'k--')
+
+    plt.yticks(range(17), ["%d %s" % (trial, condition) for trial, condition in zip(trials, conditions)])
+    plt.xticks(range(17), ["%d %s" % (trial, condition) for trial, condition in zip(trials, conditions)],
+               rotation="vertical")
+
+    print corr
+
+
+def plot_traces(df, title="traces", vmin=-20, vmax=20, normalise=False, diff=False, verbose=False):
     if verbose:
         print "M_max: %.2f, M_min: %.2f" % (df.max(), df.min())
 
-    labels1 = df['name'].values.astype('unicode')
-    labels2 = df['type'].values.astype('unicode')
+    # set the ticks of the left (1) axis to the names of the neurons
+    labels1 = df.index.levels[1][df.index.codes[1]].values.astype('unicode')
+    # set the ticks of the right (2) axis to the types of the neurons
+    labels2 = df.index.levels[0][df.index.codes[0]].values.astype('unicode')
 
     plt.figure(title, figsize=(20, 10))
-    ax1 = plt.gca()
-    ax2 = ax1.twinx()
+    ax1 = plt.gca()  # create main axis
+    ax2 = ax1.twinx()  # create secondary axis
 
-    img = df.T[5:].T.astype(float)
+    img = df.astype(float)
     if normalise:
-        img_max = img.max(axis=1)
-        img = (img.T / (img_max + eps)).T
+        img = DataFrame.normalise(img)
         vmin = -1
         vmax = 1
+    if diff:
+        img1 = img.T[:-200].T
+        img2 = img.T[200:].T
+        img1.columns = [i for i, x in enumerate(img1.columns)]
+        img2.columns = [i for i, x in enumerate(img2.columns)]
+        img = img2.sub(img1)
     ax1.imshow(img, vmin=vmin, vmax=vmax, cmap="coolwarm",
                interpolation='nearest', origin="lower", aspect="auto")
-    plt.xlim([0, img.shape[1]])
-    plt.ylim([0, img.shape[0]])
+    plt.xlim([-.5, img.shape[1]-.5])
+    plt.ylim([-.5, img.shape[0]-.5])
 
     ax2.imshow(img, vmin=vmin, vmax=vmax, cmap="coolwarm",
                interpolation='nearest', origin="lower", aspect="auto")
-    plt.xlim([0, img.shape[1]])
-    plt.ylim([0, img.shape[0]])
+    plt.xlim([-.5, img.shape[1]-.5])
+    plt.ylim([-.5, img.shape[0]-.5])
 
     types = np.unique(labels2)
     names = np.unique(labels1)
@@ -337,22 +622,29 @@ def plot_traces(df, title="traces", vmin=-20, vmax=20, normalise=False, verbose=
             q = np.argwhere(np.all([labels1 == nm, labels2 == tp], axis=0))
             if len(q) == 0:
                 continue
-            x0 = np.max(q) + 1
+            x0 = np.max(q) + .5
             ax2.plot([0, img.shape[1]], [x0, x0], 'b--', lw=.5)
             nm_ticks.append([q.mean(), nm])
         q = np.argwhere(labels2 == tp)
-        x0 = np.max(q) + 1
+        x0 = np.max(q) + .5
         ax2.plot([0, img.shape[1]], [x0, x0], 'k-', lw=1)
         tp_ticks.append([q.mean(), tp])
 
     x_ticks = []
     shock = [0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1]
+    if diff:
+        shock = shock[2:]
     for trial, s in zip(xrange(img.shape[1] / 100), shock):
-        plt.plot([trial * 100, trial * 100], [0, img.shape[0]], 'k-', lw=.5)
+        plt.plot([trial * 100, trial * 100], [-.5, img.shape[0]], 'k-', lw=.5)
         if s:
-            plt.plot([trial * 100 + 45, trial * 100 + 45], [0, img.shape[0]], 'r-', lw=.5)
+            plt.plot([trial * 100 + 45, trial * 100 + 45], [-.5, img.shape[0]], 'r-', lw=.5)
 
-        x_ticks.append([trial * 100 + 50, "Trial %d\nCS%s" % (trial / 2 + 1, '-' if trial % 2 == 0 else '+')])
+        trial1 = trial / 2 + 1
+        trial2 = trial / 2 + 2
+        if diff:
+            x_ticks.append([trial * 100 + 50, "Trial %d - %d\nCS%s" % (trial2, trial1, '-' if trial % 2 == 0 else '+')])
+        else:
+            x_ticks.append([trial * 100 + 50, "Trial %d\nCS%s" % (trial1, '-' if trial % 2 == 0 else '+')])
 
     tp_ticks = np.array(tp_ticks)
     nm_ticks = np.array(nm_ticks)
@@ -375,3 +667,70 @@ def plot_traces(df, title="traces", vmin=-20, vmax=20, normalise=False, verbose=
     ax2.yaxis.set_tick_params(which='major', labelsize=10)
 
     plt.tight_layout()
+
+
+def plot_overall_response(df, title="traces", vmin=-20, vmax=20, normalise=False, diff=False, verbose=False):
+    if verbose:
+        print "M_max: %.2f, M_min: %.2f" % (df.max(), df.min())
+
+    plt.figure(title, figsize=(20, 10))
+
+    # img = df.T[5:].T.astype(float)  # type: DataFrame
+    img = df.astype(float)  # type: DataFrame
+    if normalise:
+        img = DataFrame.normalise(img)  # type: DataFrame
+    if diff:
+        img1 = img.T[:-200].T
+        img2 = img.T[200:].T
+        img1.columns = [i for i, x in enumerate(img1.columns)]
+        img2.columns = [i for i, x in enumerate(img2.columns)]
+        img = img2.sub(img1)  # type: DataFrame
+
+    # img = img.groupby(['type', 'name', 'genotype']).mean()
+    img = img.groupby(['type']).mean()
+
+    x_ticks = []
+    shock = [0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1]
+    if diff:
+        shock = shock[2:]
+    for trial, s in zip(xrange(img.shape[1] / 100), shock):
+        plt.plot([trial, trial], [-.1, 1.1], 'k-', lw=1)
+        if s:
+            plt.plot([trial + .45, trial + .45], [-.1, 1.1], 'r-', lw=1)
+
+        trial1 = trial / 2 + 1
+        trial2 = trial / 2 + 2
+        if diff:
+            x_ticks.append([trial + .5, "Trial %d - %d" % (trial2, trial1), 'CS-' if trial % 2 == 0 else 'CS+'])
+        else:
+            x_ticks.append([trial + .5, "Trial %d" % trial1, 'CS-' if trial % 2 == 0 else 'CS+'])
+
+    x_ticks = np.array(x_ticks)
+    img_mean = img.T.groupby(['trial', 'condition']).mean().T
+    img_std = img.T.groupby(['trial', 'condition']).std().T / np.sqrt(100.)
+
+    colours = {
+        'KC': ['black', 'black'],
+        'MBON-ND': ['grey', 'grey'],
+        'MBON-ACh': ['red', 'red'],
+        'MBON-GABA': ['blue', 'blue'],
+        'MBON-Glu': ['green', 'green'],
+        'PAM': ['cyan', 'cyan'],
+        'PPL1': ['magenta', 'magenta']
+    }
+    for label, y, y_err in zip(img_mean.index.values, img_mean.values, img_std.values):
+        x = np.arange(.5, 17.5, 1)
+        if diff:
+            x = x[:-2]
+
+        plt.fill_between(x[0::2], y[0::2] + y_err[0::2], y[0::2] - y_err[0::2], color=colours[label][0], alpha=.5)
+        plt.plot(x[0::2], y[0::2], color=colours[label][0], label=label + " - CS-")
+        plt.fill_between(x[1::2], y[1::2] + y_err[1::2], y[1::2] - y_err[1::2], color=colours[label][1], alpha=.5)
+        plt.plot(x[1::2], y[1::2], color=colours[label][1], label=label + " - CS+")
+    plt.legend()
+
+    plt.xticks(np.float32(x_ticks[:, 0]), x_ticks[:, 1])
+    plt.ylim([-.1, .2])
+
+    plt.tight_layout()
+

@@ -5,10 +5,10 @@
   type: 'KC'
   name: "α'/β'"
 011a:
-  type: 'MBON-glu'
+  type: 'MBON-Glu'
   name: "γ5β'2a"
 011c:
-  type: 'MBON-glu'
+  type: 'MBON-Glu'
   name: "β'2mp"
 242a:
   type: 'MBON-ND'
@@ -17,31 +17,31 @@
   type: 'MBON-ND'
   name: "calyx"
 018:
-  type: 'MBON-ach'
+  type: 'MBON-ACh'
   name: "α'2"
 112:
-  type: 'MBON-gaba'
+  type: 'MBON-GABA'
   name: "γ1pedc"
 112pt2:
-  type: 'MBON-gaba'
+  type: 'MBON-GABA'
   name: "γ1pedc"
 080:
-  type: 'MBON-ach'
+  type: 'MBON-ACh'
   name: "α2sc"
 542:
-  type: 'MBON-ach'
+  type: 'MBON-ACh'
   name: "α2p3p"
 542_a2p3pROI:
-  type: 'MBON-ach'
+  type: 'MBON-ACh'
   name: "α2p3p"
 077:
-  type: 'MBON-ach'
+  type: 'MBON-ACh'
   name: "γ2α'1"
 027:
-  type: 'MBON-ach'
+  type: 'MBON-ACh'
   name: "α'3"
 110b:
-  type: 'MBON-gaba'
+  type: 'MBON-GABA'
   name: "γ3/γ3β'1"
 025A:
   type: 'PAM'
@@ -51,7 +51,7 @@
   name: "γ1pedc"
 194a:
   type: 'PAM'
-  name: "β'1pedc"
+  name: "β1pedc"
 213a:
   type: 'PAM'
   name: "β2"
@@ -60,10 +60,10 @@
   name: "β2β'2a"
 109:
   type: 'PAM'
-  name: "β'2p"
+  name: "β'2a"
 032:
   type: 'PAM'
-  name: "β'2μ"
+  name: "β'2m"
 032a:
   type: 'PAM'
   name: "β'2m"
@@ -101,28 +101,28 @@
   type: 'KC'
   name: "γm"
 057:
-  type: 'MBON-gaba'
+  type: 'MBON-GABA'
   name: "β'1"
 399:
-  type: 'MBON-glu'
+  type: 'MBON-Glu'
   name: "β2β'2a"
 082:
-  type: 'MBON-ach'
+  type: 'MBON-ACh'
   name: "α3"
 050:
-  type: 'MBON-ach'
+  type: 'MBON-ACh'
   name: "α'1"
 110s:
-  type: 'MBON-gaba'
+  type: 'MBON-GABA'
   name: "γ3/γ3β'1"
 298:
-  type: 'MBON-glu'
+  type: 'MBON-Glu'
   name: "γ4>γ1γ2"
 433:
-  type: 'MBON-glu'
+  type: 'MBON-Glu'
   name: "β1>α"
 310:
-  type: 'MBON-glu'
+  type: 'MBON-Glu'
   name: "α1"
 043a:
   type: 'PAM'
@@ -150,10 +150,10 @@
   name: "β2β'2a"
 441:
   type: 'PAM'
-  name: "α3"
+  name: "γ3"
 315:
   type: 'PAM'
-  name: "α5"
+  name: "γ5"
 296a:
   type: 'PPL1'
   name: "γ2α'1"
@@ -172,3 +172,45 @@
 320b:
   type: 'PPL1'
   name: "γ1pedc"
+594:
+  type: 'KC'
+  name: "α/βc"  # core
+594a:
+  type: 'KC'
+  name: "α/βc"
+594b:
+  type: 'KC'
+  name: "α/βc"
+477:
+  type: 'KC'
+  name: "α/βs"  # surface
+477a:
+  type: 'KC'
+  name: "α/βs"
+477b:
+  type: 'KC'
+  name: "α/βs"
+50743:
+  type: 'KC'
+  name: "α/βp"  # posterior
+463:
+  type: 'KC'
+  name: "α'/β'ap"  # anterior and posterior
+463a:
+  type: 'KC'
+  name: "α'ap"
+463b:
+  type: 'KC'
+  name: "β'ap"
+463c:
+  type: 'KC'
+  name: "α'/β'ap"
+418:
+  type: 'KC'
+  name: "α'/β'm"  # medial
+418a:
+  type: 'KC'
+  name: "α'/β'm"
+418b:
+  type: 'KC'
+  name: "α'/β'm"

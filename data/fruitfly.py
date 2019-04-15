@@ -224,26 +224,69 @@ class DataFrame(pd.DataFrame):
             pass
 
         recs = self.load_data()
-        names = recs.keys()
-        odours = []
         raw_data = {}
-        for name in names:
+        for name in recs.keys():
             genotype, odour = re.findall(r'([\d\w\W]+)-([\w\W]+)', name)[0]
             if genotype not in meta.keys():
                 continue
             if genotype not in raw_data.keys():
                 raw_data[genotype] = meta[genotype]
             if 'M+S' in odour:
-                raw_data[genotype]['cs+'] = odour
+                raw_data[genotype]['CS+'] = odour
                 raw_data[genotype]['cs+traces'] = recs[name]
             else:
-                raw_data[genotype]['cs-'] = odour
+                raw_data[genotype]['CS-'] = odour
                 raw_data[genotype]['cs-traces'] = recs[name]
-            if odour not in odours:
-                odours.append(odour)
-            raw_data[genotype]['loc'] = self.__name2location(meta[genotype]['name'])
 
-        super(DataFrame, self).__init__(raw_data)
+        ids, genotypes, names, types, trials, odours, conditions, traces = [], [], [], [], [], [], [], []
+        for j, name in enumerate(raw_data.keys()):
+            for i in xrange(9):
+                nb_flies = raw_data[name]['cs-traces'].shape[-1]
+                trials.append([i+1] * nb_flies)
+                odours.append([raw_data[name]["CS-"]] * nb_flies)
+                conditions.append(['CS-'] * nb_flies)
+                types.append([raw_data[name]['type']] * nb_flies)
+                genotypes.append([name] * nb_flies)
+                names.append([raw_data[name]['name']] * nb_flies)
+                traces.append(raw_data[name]['cs-traces'][i])
+                ids.append(j * nb_flies + np.arange(nb_flies) + 1)
+
+            for i in xrange(8):
+                nb_flies = raw_data[name]['cs+traces'].shape[-1]
+                trials.append([i+1] * nb_flies)
+                odours.append([raw_data[name]["CS+"]] * nb_flies)
+                conditions.append(['CS+'] * nb_flies)
+                types.append([raw_data[name]['type']] * nb_flies)
+                genotypes.append([name] * nb_flies)
+                names.append([raw_data[name]['name']] * nb_flies)
+                traces.append(raw_data[name]['cs+traces'][i])
+                ids.append(j * nb_flies + np.arange(nb_flies) + 1)
+
+        genotypes = np.concatenate(genotypes)[np.newaxis]
+        names = np.concatenate(names)[np.newaxis]
+        types = np.concatenate(types)[np.newaxis]
+        trials = np.concatenate(trials)[np.newaxis]
+        odours = np.concatenate(odours)[np.newaxis]
+        conditions = np.concatenate(conditions)[np.newaxis]
+        ids = np.concatenate(ids)[np.newaxis]
+        traces = np.concatenate(traces, axis=-1)
+
+        keys = ["type", "condition", "name", "genotype", "odour", "trial", "id"] + list(np.linspace(0.2, 20, 100))
+        dat = np.concatenate([types, conditions, names, genotypes, odours, trials, ids, traces], axis=0)
+        types = ['unicode'] * 5 + [int] * 2 + [float] * 100
+
+        dat_dict = {}
+        for key, d, t in zip(keys, dat, types):
+            dat_dict[key] = d.astype(t)
+        raw_data = pd.DataFrame(dat_dict)
+
+        raw_data.set_index(["type", "condition", "name", "genotype", "odour", "trial", "id"], inplace=True)
+
+        raw_data.columns = pd.MultiIndex(levels=[raw_data.columns.astype(float).values, [False, True]],
+                                         codes=[range(100), [0] * 45 + [1] + [0] * 54],
+                                         names=['time', 'shock'])
+
+        super(DataFrame, self).__init__(raw_data.astype(float))
 
     def __name2location(self, name):
         """
@@ -365,36 +408,45 @@ class DataFrame(pd.DataFrame):
                                 gens_ret[genotype] = gens[genotype]
                                 continue
 
-        return FruitflyData(**gens_ret)
+        return DataFrame(**gens_ret)
+
+    @property
+    def unstacked(self):
+        return DataFrame.pivot_trials(self)
+
+    @property
+    def normalised(self):
+        return DataFrame.normalise(self)
 
     @staticmethod
-    def dataset(data):
+    def pivot_trials(df):
+        # drop the 'odour' index
+        dff = df.reset_index(level='odour', drop=True)
 
-        csp, csm, csp_types, csm_types = [], [], [], []
-        genotypes, names, types = [], [], []
-        for name in data.keys():
-            csp.append(data[name]['cs+traces'])
-            csm.append(data[name]["cs-traces"])
-            csp_types.append([data[name]["cs+"]] * csp[-1].shape[-1])
-            csm_types.append([data[name]["cs-"]] * csp[-1].shape[-1])
-            genotypes.append([name] * csp[-1].shape[-1])
-            names.append([data[name]['name']] * csp[-1].shape[-1])
-            types.append([data[name]['type']] * csp[-1].shape[-1])
+        # reorder the levels of indices in the 'index' axis so that the 'trial' index is last
+        dff = dff.reorder_levels(['type', 'name', 'genotype', 'id', 'condition', 'trial'], axis=0)  # type: DataFrame
 
-        csp = np.concatenate(csp, axis=2)
-        csm = np.concatenate(csm, axis=2)
+        # unstack the last level: the last level changes axis for 'index' to 'column'
+        dff = dff.unstack([-2, -1])  # type: DataFrame
 
-        keys = ["genotype", "name", "type", "CS+ type", "CS- type"] + [s % (i/200 + 1) for i, s in enumerate((
-             ["%s.%d-" % ("%d", t) for t in xrange(100)] + ["%s.%d+" % ("%d", t) for t in xrange(100)]
-        ) * 8)] + ["9.%d-" % t for t in xrange(100)]
+        # reorder the levels of indices in the 'columns' axis
+        dff = dff.reorder_levels(['trial', 'condition', 'time', 'shock'], axis=1)  # type: DataFrame
 
-        return pd.DataFrame(np.concatenate([
-            np.concatenate(genotypes)[np.newaxis], np.concatenate(names)[np.newaxis], np.concatenate(types)[np.newaxis],
-            np.concatenate(csp_types)[np.newaxis], np.concatenate(csm_types)[np.newaxis],
-            csm[0, ...], csp[0, ...], csm[1, ...], csp[1, ...], csm[2, ...], csp[2, ...],
-            csm[3, ...], csp[3, ...], csm[4, ...], csp[4, ...], csm[5, ...], csp[5, ...],
-            csm[6, ...], csp[6, ...], csm[7, ...], csp[7, ...], csm[8, ...]
-        ], axis=0), index=keys).T
+        # sort the indices in the 'columns' axis
+        dff = dff.sort_index(axis=1, level=['trial', 'condition', 'time'], ascending=[True, False, True])
+
+        # sort the indices in the 'index' axis
+        dff = dff.sort_index(axis=0, level=['type', 'name', 'genotype', 'id'])  # type: DataFrame
+
+        # drop the last trial (CS+ trial 9) which does not exist
+        dff = dff.T[:-100].T
+
+        return dff  # type: DataFrame
+
+    @staticmethod
+    def normalise(df):
+        x_max = np.max([df.max(axis=1), -df.min(axis=1)], axis=0)
+        return (df.T / (x_max + eps)).T
 
     @staticmethod
     def load_data():
@@ -435,7 +487,7 @@ def plot_data(save=False, show=True):
 
     import matplotlib.pyplot as plt
 
-    recs = load_data()
+    recs = DataFrame.load_data()
     names = recs.keys()
     figs = []
     genotypes = []
@@ -471,7 +523,7 @@ def plot_data(save=False, show=True):
 def hierarchical_clustering(normalise=False, plot_pca_2d=False):
     from sklearn.cluster import AgglomerativeClustering
 
-    data_dict = sort(FruitflyData.dataset(FruitflyData()), ['type', 'name'])
+    data_dict = sort(DataFrame.dataset(DataFrame()), ['type', 'name'])
 
     x = data_dict['traces'].reshape((-1, data_dict['traces'].shape[-1]))
     if normalise:
@@ -553,11 +605,35 @@ if __name__ == "__main__":
     #             labels1=data_dict['name'], labels2=data_dict['type'], vmin=-v, vmax=v)
     # plt.show()
 
-    df = DataFrame.dataset(DataFrame())
-    # plot_traces(df.sort_values(by=['type', 'name']), normalise=True)
-    # print sort(df, ['type', 'name'])
+    df = DataFrame()
+    dff = df.unstacked
+    # print dff
+    plot_traces(dff.sort_index(axis=0, level=['type', 'name']), diff=True, normalise=True)
+    # plot_overall_response(dff.sort_index(axis=0, level=['type', 'name']), diff=False, normalise=True)
 
-    plot_corr_over_time(df)
+    # for i in range(0, 9):
+    #     corr_matrix(dff.sort_index(axis=0, level=['type', 'name']), diff=False, shock=False,
+    #                 mode="iter-%d" % (i * 2 + 1))
+    #
+    # for i in range(0, 8):
+    #     corr_matrix(dff.sort_index(axis=0, level=['type', 'name']), diff=False, shock=False,
+    #                 mode="iter-%d" % (i * 2 + 2))
+
+    # for i in range(1, 8):
+    #     cross_corr_matrix(dff.sort_index(axis=0, level=['type', 'name']), diff=True,
+    #                       mode1="iter-%d" % (i * 2 + 1), mode2="iter-%d" % (i * 2 + 3))
+    #
+    # for i in range(1, 7):
+    #     cross_corr_matrix(dff.sort_index(axis=0, level=['type', 'name']), diff=True,
+    #                       mode1="iter-%d" % (i * 2 + 2), mode2="iter-%d" % (i * 2 + 4))
+
+    # corr_matrix(dff.sort_index(axis=0, level=['type', 'name']), mode="reversal", diff=True)
+    # plot_mutual_information(dff.sort_index(axis=0, level=['type', 'name']), diff=True)
+    # plot_f_score(dff.sort_index(axis=0, level=['type', 'name']), diff=True)
+    # plot_corr_over_time(dff, shock=False)
+    # plot_cross_corr_over_time(dff, shock=False)
+    # plot_iter_corr_matrix(dff, shock=False)
+    # plot_iter_corr_matrix(dff, sort_by=['condition', 'trial'], ascending=[False, True], shock=False)
     # pairplot(df.sort_values(by=['type', 'name']))
 
     # x = df[5:].astype(float)
