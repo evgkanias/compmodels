@@ -15,32 +15,39 @@ def plot_matrix(M, title="", labels1=None, labels2=None, vmin=-1., vmax=1., verb
         print "M_max: %.2f, M_min: %.2f" % (M.max(), M.min())
     plt.figure(title, figsize=(10.7, 10))
     ax1 = plt.gca()
-    ax2 = ax1.twinx()
+    if labels2 is not None:
+        ax2 = ax1.twinx()
 
     ax1.imshow(M, vmin=vmin, vmax=vmax, cmap="coolwarm", origin='lower', aspect="equal")
     plt.xlim([-.5, M.shape[1]-.5])
     plt.ylim([-.5, M.shape[1]-.5])
 
-    ax2.imshow(M, vmin=vmin, vmax=vmax, cmap="coolwarm", origin='lower', aspect="equal")
-    plt.xlim([-.5, M.shape[1]-.5])
-    plt.ylim([-.5, M.shape[1]-.5])
+    if labels2 is not None:
+        ax2.imshow(M, vmin=vmin, vmax=vmax, cmap="coolwarm", origin='lower', aspect="equal")
+        plt.xlim([-.5, M.shape[1]-.5])
+        plt.ylim([-.5, M.shape[1]-.5])
 
-    types = np.unique(labels2)
+    types = [""] if labels2 is None else np.unique(labels2)
     names = np.unique(labels1)
     tp_ticks, nm_ticks = [], []
     for tp in types:
         for nm in names:
-            q = np.argwhere(np.all([labels1 == nm, labels2 == tp], axis=0))
+            if labels2 is None:
+                q = np.argwhere(labels1 == nm)
+            else:
+                q = np.argwhere(np.all([labels1 == nm, labels2 == tp], axis=0))
             if len(q) == 0:
                 continue
-            x0 = np.max(q) + .5
-            ax2.plot([-.5, M.shape[1]-.5], [x0, x0], 'b--', lw=.5)
-            ax2.plot([x0, x0], [-.5, M.shape[1]-.5], 'b--', lw=.5)
+            if labels2 is not None:
+                x0 = np.max(q) + .5
+                ax2.plot([-.5, M.shape[1]-.5], [x0, x0], 'b--', lw=.5)
+                ax2.plot([x0, x0], [-.5, M.shape[1]-.5], 'b--', lw=.5)
             nm_ticks.append([q.mean(), nm])
-        q = np.argwhere(labels2 == tp)
-        x0 = np.max(q) + .5
-        ax2.plot([-.5, M.shape[1]-.5], [x0, x0], 'k-', lw=1)
-        ax2.plot([x0, x0], [-.5, M.shape[1]-.5], 'k-', lw=1)
+        if labels2 is not None:
+            q = np.argwhere(labels2 == tp)
+            x0 = np.max(q) + .5
+            ax2.plot([-.5, M.shape[1]-.5], [x0, x0], 'k-', lw=1)
+            ax2.plot([x0, x0], [-.5, M.shape[1]-.5], 'k-', lw=1)
         tp_ticks.append([q.mean(), tp])
 
     tp_ticks = np.array(tp_ticks)
@@ -52,17 +59,18 @@ def plot_matrix(M, title="", labels1=None, labels2=None, vmin=-1., vmax=1., verb
     ax1.yaxis.set_ticklabels(nm_ticks[:, 1])
     ax1.yaxis.set_tick_params(which='major', labelsize=10)
 
-    ax2.xaxis.set_ticks(np.float32(nm_ticks[:, 0]))
-    ax2.xaxis.set_ticklabels(nm_ticks[:, 1], rotation='vertical')
-    ax2.xaxis.set_tick_params(which='major', labelsize=10)
-    ax2.yaxis.set_ticks(np.float32(tp_ticks[:, 0]))
-    ax2.yaxis.set_ticklabels(tp_ticks[:, 1])
-    ax2.yaxis.set_tick_params(which='major', labelsize=10)
+    if labels2 is not None:
+        ax2.xaxis.set_ticks(np.float32(nm_ticks[:, 0]))
+        ax2.xaxis.set_ticklabels(nm_ticks[:, 1], rotation='vertical')
+        ax2.xaxis.set_tick_params(which='major', labelsize=10)
+        ax2.yaxis.set_ticks(np.float32(tp_ticks[:, 0]))
+        ax2.yaxis.set_ticklabels(tp_ticks[:, 1])
+        ax2.yaxis.set_tick_params(which='major', labelsize=10)
 
     plt.tight_layout()
 
 
-def corr_matrix(df, mode="all", diff=False, shock=True, show=True):
+def corr_matrix(df, mode="all", avg=False, abs=False, diff=False, shock=True, show=True):
 
     df = DataFrame.normalise(df.astype(float))
 
@@ -72,6 +80,9 @@ def corr_matrix(df, mode="all", diff=False, shock=True, show=True):
         df1.columns = [i for i, x in enumerate(df1.columns)]
         df2.columns = [i for i, x in enumerate(df2.columns)]
         df = df2.sub(df1)
+
+    if avg:
+        df = df.groupby(['type', 'name', 'genotype'], axis=0).mean()
 
     mask = np.zeros(df.T.shape[0], dtype=bool)
     if mode is not list:
@@ -141,20 +152,27 @@ def corr_matrix(df, mode="all", diff=False, shock=True, show=True):
     types = df.index.levels[0][df.index.codes[0]]
 
     corr = df.T.astype(float).loc[mask].corr()
+    if abs:
+        corr = corr.abs()
     corr.columns = names
     corr.index = names
 
     if show:
-        plot_matrix(corr, title="cc-matrix-%s%s%s" % (mode[0], "" if shock else "-noshock", "-diff" if diff else ""),
+        plot_matrix(corr, title="cc-matrix-%s%s%s%s%s" % (
+            mode[0],
+            "-avg" if avg else "",
+            "-abs" if abs else "",
+            "" if shock else "-noshock",
+            "-diff" if diff else ""),
                     vmin=-1., vmax=1.,
                     labels1=names.values.astype('unicode'),
                     labels2=types.values.astype('unicode'))
         plt.show()
 
-    return corr
+    return corr, names.values.astype('unicode'), types.values.astype('unicode')
 
 
-def cross_corr_matrix(df, mode1="all", mode2="all", diff=False, shock=True, show=True):
+def cross_corr_matrix(df, mode1="all", mode2="all", avg=False, diff=False, shock=True, show=True):
 
     df = DataFrame.normalise(df.astype(float))
 
@@ -164,6 +182,9 @@ def cross_corr_matrix(df, mode1="all", mode2="all", diff=False, shock=True, show
         df1.columns = [i for i, x in enumerate(df1.columns)]
         df2.columns = [i for i, x in enumerate(df2.columns)]
         df = df2.sub(df1)
+
+    if avg:
+        df = df.groupby(['type', 'name', 'genotype'], axis=0).mean()
 
     mask1 = np.zeros(df.T.shape[0], dtype=bool)
     mask2 = np.zeros_like(mask1)
@@ -249,7 +270,10 @@ def cross_corr_matrix(df, mode1="all", mode2="all", diff=False, shock=True, show
     # corr.index = names
 
     if show:
-        plot_matrix(corr, title="cc-matrix-%s-vs-%s%s" % (mode1, mode2, "-diff" if diff else ""),
+        plot_matrix(corr, title="cc-matrix-%s-vs-%s%s%s" % (
+            mode1, mode2,
+            "-avg" if avg else "",
+            "-diff" if diff else ""),
                     vmin=-1., vmax=1.,
                     labels1=names.values.astype('unicode'),
                     labels2=types.values.astype('unicode'))
@@ -580,7 +604,7 @@ def plot_iter_corr_matrix(df, sort_by=None, ascending=None, diff=False, shock=Tr
     print corr
 
 
-def plot_traces(df, title="traces", vmin=-20, vmax=20, normalise=False, diff=False, verbose=False):
+def plot_traces(df, title="traces", vmin=-20, vmax=20, normalise=False, avg=False, diff=False, verbose=False):
     if verbose:
         print "M_max: %.2f, M_min: %.2f" % (df.max(), df.min())
 
@@ -604,6 +628,9 @@ def plot_traces(df, title="traces", vmin=-20, vmax=20, normalise=False, diff=Fal
         img1.columns = [i for i, x in enumerate(img1.columns)]
         img2.columns = [i for i, x in enumerate(img2.columns)]
         img = img2.sub(img1)
+    if avg:
+        img = img.groupby(['type', 'name', 'genotype'], axis=0).mean()
+
     ax1.imshow(img, vmin=vmin, vmax=vmax, cmap="coolwarm",
                interpolation='nearest', origin="lower", aspect="auto")
     plt.xlim([-.5, img.shape[1]-.5])
@@ -734,3 +761,5 @@ def plot_overall_response(df, title="traces", vmin=-20, vmax=20, normalise=False
 
     plt.tight_layout()
 
+GR1301407190719002789001744
+CRBAGRAA

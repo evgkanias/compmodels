@@ -587,6 +587,27 @@ def sort(dset, orders):
     return dset
 
 
+def sort_corr(C, names=None, types=None):
+    C['id'] = range(len(names))
+    C = C.set_index('id').T
+    C['id'] = range(len(names))
+    C = C.set_index('id').T
+
+    C_sorted = C.copy().abs()
+    indices = C.index.values
+
+    C_sorted = C_sorted.sort_values(by=list(indices), axis=0, ascending=False)
+    columns = C.columns.values
+    C_sorted = C_sorted.sort_values(by=list(columns), axis=1, ascending=False)
+
+    i = C_sorted.index.tolist()
+    C_sorted['name'] = names[i].astype('unicode')
+    C_sorted = C_sorted.set_index('name').T
+    C_sorted['name'] = names[i].astype('unicode')
+    C_sorted = C_sorted.set_index('name').T
+
+
+
 if __name__ == "__main__":
     from visualisation import *
     import matplotlib.pyplot as plt
@@ -608,7 +629,7 @@ if __name__ == "__main__":
     df = DataFrame()
     dff = df.unstacked
     # print dff
-    plot_traces(dff.sort_index(axis=0, level=['type', 'name']), diff=True, normalise=True)
+    # plot_traces(dff.sort_index(axis=0, level=['type', 'name']), diff=False, normalise=True)
     # plot_overall_response(dff.sort_index(axis=0, level=['type', 'name']), diff=False, normalise=True)
 
     # for i in range(0, 9):
@@ -627,6 +648,8 @@ if __name__ == "__main__":
     #     cross_corr_matrix(dff.sort_index(axis=0, level=['type', 'name']), diff=True,
     #                       mode1="iter-%d" % (i * 2 + 2), mode2="iter-%d" % (i * 2 + 4))
 
+    C, names, types = corr_matrix(dff.sort_index(axis=0, level=['type', 'name']),
+                                  mode="all", avg=True, diff=True, show=True)  # type: DataFrame
     # corr_matrix(dff.sort_index(axis=0, level=['type', 'name']), mode="reversal", diff=True)
     # plot_mutual_information(dff.sort_index(axis=0, level=['type', 'name']), diff=True)
     # plot_f_score(dff.sort_index(axis=0, level=['type', 'name']), diff=True)
@@ -641,4 +664,7 @@ if __name__ == "__main__":
     #                   diag_kind="kde", diag_kws=dict(shade=True))
     # fig = pp.fig
     # fig.subplots_adjust(top=0.93, wspace=0.3)
+
+    # plot_matrix(C_sorted, title="cc-matrix-sorted",
+    #             labels1=C_sorted.index.values.astype('unicode'))
     plt.show()
