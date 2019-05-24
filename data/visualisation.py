@@ -696,6 +696,91 @@ def plot_traces(df, title="traces", vmin=-20, vmax=20, normalise=False, avg=Fals
     plt.tight_layout()
 
 
+m_count = 0
+
+
+def plot_traces_over_time(df, group=None, normalise=False, shock=True, diff=False, merge=0):
+    global m_count
+
+    ymax = 5
+    ymin = 0
+    if normalise:
+        df = DataFrame.normalise(df)
+        ymax = .15
+    if diff:
+        ymax = 2.5
+        ymin = -2.5
+        if normalise:
+            ymax = .2
+            ymin = -.2
+
+    if diff:
+        columns = df.columns
+        df1 = pd.concat([df.T[:200]]*9)[:-100].T  # type: pd.DataFrame
+        df1.columns = columns
+        df2 = df
+        df = df2.sub(df1)
+
+    if not shock:
+        cols = np.array(([1] * 44 + [0] * 56) * 17, dtype=bool)
+        df = df.T.astype(float).loc[cols].T
+
+    dff = df.T.groupby(by=["trial", "condition"]).mean().T  # type: pd.DataFrame
+
+    cond = []
+    if group is not None:
+        if type(group) is not list:
+            group = [group]
+        for g in group:
+            if g == "MBON":
+                group.append("MBON-ACh")
+                group.append("MBON-Glu")
+                group.append("MBON-GABA")
+                group.append("MBON-ND")
+                continue
+            elif g == "DAN":
+                group.append("PAM")
+                group.append("PPL1")
+                continue
+            cond.append(dff.index.get_level_values('type') == g)
+        dff = dff.iloc[np.any(cond, axis=0)]
+
+    dff_csm = dff.T.iloc[dff.columns.get_level_values('condition') == 'CS-'].T.mean()
+    dff_csp = dff.T.iloc[dff.columns.get_level_values('condition') == 'CS+'].T.mean()
+
+    plt.figure("trails-over-time%s%s" % (
+        "" if shock else "-noshock",
+        "" if group is None or merge > 0 else "-%s" % str.join("|", group)), figsize=(10, 10))
+
+    par = ""
+    if merge > 0:
+        par += str.join('|', group)
+        if diff:
+            par += "; "
+    if diff:
+        par += "change"
+
+    print m_count, par
+    plt.plot(np.arange(0, 9), dff_csm,
+             "C%d--" % m_count, lw=2, label="CS- (%s)" % par if par is not None else "CS-")
+    plt.plot(np.arange(0, 8) + .5, dff_csp,
+             "C%d-" % m_count, lw=2, label="CS+ (%s)" % par if par is not None else "CS+")
+    plt.plot([1.5, 2.5, 3.5, 4.5, 5.5, 7, 8],
+             np.append(dff_csp[[1, 2, 3, 4, 5]], dff_csm[[7, 8]]),
+             'ro', lw=1)
+
+    plt.xticks(np.arange(0, 8.5, .5), [
+        "1-", "1+", "2-", "2+", "3-", "3+", "4-", "4+", "5-", "5+", "6-", "6+", "7-", "7+", "8-", "8+", "9-"])
+    plt.ylim([ymin, ymax])
+    plt.xlim([-.5, 8.5])
+    plt.xlabel("Trial")
+    plt.ylabel(r'$\frac{1}{T}\sum{r(t)}$')
+    plt.legend()
+    m_count += 1
+    if m_count >= merge:
+        m_count = 0
+
+
 def plot_overall_response(df, title="traces", vmin=-20, vmax=20, normalise=False, diff=False, verbose=False):
     if verbose:
         print "M_max: %.2f, M_min: %.2f" % (df.max(), df.min())
@@ -760,6 +845,3 @@ def plot_overall_response(df, title="traces", vmin=-20, vmax=20, normalise=False
     plt.ylim([-.1, .2])
 
     plt.tight_layout()
-
-GR1301407190719002789001744
-CRBAGRAA
