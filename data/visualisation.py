@@ -10,10 +10,10 @@ from fruitfly import DataFrame
 eps = np.finfo(float).eps
 
 
-def plot_matrix(M, title="", labels1=None, labels2=None, vmin=-1., vmax=1., verbose=False):
+def plot_matrix(M, title="", labels1=None, labels2=None, vmin=-1., vmax=1., verbose=False, figsize=(10.7, 10)):
     if verbose:
         print "M_max: %.2f, M_min: %.2f" % (M.max(), M.min())
-    plt.figure(title, figsize=(10.7, 10))
+    plt.figure(title, figsize=figsize)
     ax1 = plt.gca()
     if labels2 is not None:
         ax2 = ax1.twinx()
@@ -70,7 +70,7 @@ def plot_matrix(M, title="", labels1=None, labels2=None, vmin=-1., vmax=1., verb
     plt.tight_layout()
 
 
-def corr_matrix(df, mode="all", avg=False, abs=False, diff=False, shock=True, show=True):
+def corr_matrix(df, mode="all", avg=False, abs=False, diff=False, shock=True, show=True, figsize=(10.7, 10)):
 
     df = DataFrame.normalise(df.astype(float))
 
@@ -85,7 +85,7 @@ def corr_matrix(df, mode="all", avg=False, abs=False, diff=False, shock=True, sh
         df = df.groupby(['type', 'name', 'genotype'], axis=0).mean()
 
     mask = np.zeros(df.T.shape[0], dtype=bool)
-    if mode is not list:
+    if type(mode) is not list:
         mode = [mode]
     if None in mode or "all" in mode:
         mask[:] = 1
@@ -141,12 +141,12 @@ def corr_matrix(df, mode="all", avg=False, abs=False, diff=False, shock=True, sh
         mask[-200:-100] = 1
     if "iter-17" in mode:
         mask[-100:] = 1
-
     if not shock:
         cols = np.array(([1] * 44 + [0] * 56) * 17, dtype=bool)
         if diff:
             cols = cols[:-200]
         mask = np.all([mask, cols], axis=0)
+    print mask
 
     names = df.index.levels[1][df.index.codes[1]]
     types = df.index.levels[0][df.index.codes[0]]
@@ -166,7 +166,7 @@ def corr_matrix(df, mode="all", avg=False, abs=False, diff=False, shock=True, sh
             "-diff" if diff else ""),
                     vmin=-1., vmax=1.,
                     labels1=names.values.astype('unicode'),
-                    labels2=types.values.astype('unicode'))
+                    labels2=types.values.astype('unicode'), figsize=figsize)
         plt.show()
 
     return corr, names.values.astype('unicode'), types.values.astype('unicode')
@@ -699,7 +699,7 @@ def plot_traces(df, title="traces", vmin=-20, vmax=20, normalise=False, avg=Fals
 m_count = 0
 
 
-def plot_traces_over_time(df, group=None, normalise=False, shock=True, diff=False, merge=0):
+def plot_traces_over_time(df, group=None, types=["type"], normalise=False, shock=True, diff=False, merge=0):
     global m_count
 
     ymax = 5
@@ -708,11 +708,11 @@ def plot_traces_over_time(df, group=None, normalise=False, shock=True, diff=Fals
         df = DataFrame.normalise(df)
         ymax = .15
     if diff:
-        ymax = 2.5
-        ymin = -2.5
+        ymax = 3.5
+        ymin = -3.5
         if normalise:
-            ymax = .2
-            ymin = -.2
+            ymax = .5
+            ymin = -.5
 
     if diff:
         columns = df.columns
@@ -729,6 +729,7 @@ def plot_traces_over_time(df, group=None, normalise=False, shock=True, diff=Fals
 
     cond = []
     if group is not None:
+        print group
         if type(group) is not list:
             group = [group]
         for g in group:
@@ -742,23 +743,30 @@ def plot_traces_over_time(df, group=None, normalise=False, shock=True, diff=Fals
                 group.append("PAM")
                 group.append("PPL1")
                 continue
-            cond.append(dff.index.get_level_values('type') == g)
-        dff = dff.iloc[np.any(cond, axis=0)]
 
-    dff_csm = dff.T.iloc[dff.columns.get_level_values('condition') == 'CS-'].T.mean()
-    dff_csp = dff.T.iloc[dff.columns.get_level_values('condition') == 'CS+'].T.mean()
+            if type(g) is list:
+                c = np.all([dff.index.get_level_values(t) == gg for t, gg in zip(types, g)], axis=0)
+            else:
+                c = dff.index.get_level_values(types[0]) == g
+            cond.append(c)
+        dfff = dff.iloc[np.any(cond, axis=0)]
+        print dfff
+
+    dff_csm = dfff.T.iloc[dfff.columns.get_level_values('condition') == 'CS-'].T.mean()
+    dff_csp = dfff.T.iloc[dfff.columns.get_level_values('condition') == 'CS+'].T.mean()
 
     plt.figure("trails-over-time%s%s" % (
         "" if shock else "-noshock",
-        "" if group is None or merge > 0 else "-%s" % str.join("|", group)), figsize=(10, 10))
+        "" if group is None or merge > 0 else "-%s" % str.join("|", group if type(g) is not list else group[0])),
+               figsize=(10, 2.5))
 
     par = ""
     if merge > 0:
         par += str.join('|', group)
         if diff:
             par += "; "
-    if diff:
-        par += "change"
+    # if diff:
+    #     par += "change"
 
     print m_count, par
     plt.plot(np.arange(0, 9), dff_csm,
@@ -775,7 +783,7 @@ def plot_traces_over_time(df, group=None, normalise=False, shock=True, diff=Fals
     plt.xlim([-.5, 8.5])
     plt.xlabel("Trial")
     plt.ylabel(r'$\frac{1}{T}\sum{r(t)}$')
-    plt.legend()
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
     m_count += 1
     if m_count >= merge:
         m_count = 0

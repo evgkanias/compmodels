@@ -627,6 +627,17 @@ if __name__ == "__main__":
 
     df = DataFrame()
     dff = df.unstacked
+
+    # A tale of the three MBONs
+    cond = []
+    for group in [[r'PPL1', u'\u03b31pedc'], [r'MBON-GABA', u'\u03b31pedc'],
+                  [r'PAM', u"\u03b2'2m"], [r'MBON-Glu', u"\u03b2'2mp"],
+                  [r'PAM', u"\u03b2'2a"], [r'MBON-Glu', u"\u03b35\u03b2'2a"]]:
+        c = np.all([dff.index.get_level_values(t) == g for t, g in zip(["type", "name"], group)], axis=0)
+        cond.append(c)
+    dff = dff.iloc[np.any(cond, axis=0)]
+    print dff
+
     # print dff
     # plot_traces(dff.sort_index(axis=0, level=['type', 'name']), diff=False, normalise=True)
     # plot_overall_response(dff.sort_index(axis=0, level=['type', 'name']), diff=False, normalise=True)
@@ -649,7 +660,10 @@ if __name__ == "__main__":
 
     # C, names, types = corr_matrix(dff.sort_index(axis=0, level=['type', 'name']),
     #                               mode="all", avg=True, diff=True, show=True)  # type: DataFrame
-    # corr_matrix(dff.sort_index(axis=0, level=['type', 'name']), mode="reversal", diff=True)
+    for i in range(17):
+        corr_matrix(dff.sort_index(axis=0, level=['type', 'name']),
+                    mode=["iter-%d" % (i + 1)],
+                    shock=False, diff=True, avg=True, figsize=(3.8, 3))
     # plot_mutual_information(dff.sort_index(axis=0, level=['type', 'name']), diff=True)
     # plot_f_score(dff.sort_index(axis=0, level=['type', 'name']), diff=True)
     # plot_corr_over_time(dff, shock=False)
@@ -667,7 +681,13 @@ if __name__ == "__main__":
     # plot_matrix(C_sorted, title="cc-matrix-sorted",
     #             labels1=C_sorted.index.values.astype('unicode'))
 
-    for group in [""]:  # ""KC", "MBON-ND", "MBON-Glu", "MBON-GABA", "MBON-ACh", "PAM", "PPL1"]:
-        plot_traces_over_time(dff, diff=True, group=None, normalise=True, shock=False, merge=0)
+    # for group in ["KC", "MBON-ND", "MBON-Glu", "MBON-GABA", "MBON-ACh", "PAM", "PPL1"]:
+    #     plot_traces_over_time(dff, diff=True, group=group, normalise=True, shock=False, merge=7)
 
+    # for group in [[[r'PPL1', u'\u03b31pedc']], [[r'MBON-GABA', u'\u03b31pedc']],
+    #               [[r'PAM', u"\u03b2'2m"]], [[r'MBON-Glu', u"\u03b2'2mp"]],
+    #               [[r'PAM', u"\u03b2'2a"]], [[r'MBON-Glu', u"\u03b35\u03b2'2a"]]]:
+    #     plot_traces_over_time(dff, diff=True, group=group, normalise=False, shock=False, types=["type", "name"])
+    #
+    # plt.tight_layout()
     plt.show()

@@ -2,7 +2,7 @@ import numpy as np
 from PIL import Image
 from world import Route, route_like, Hybrid, save_route
 from world.data_manager import __data__
-from net import MB
+from net import WillshawNet as MB
 from base import Agent, Logger
 from visualiser import Visualiser
 from world.utils import shifted_datetime
