@@ -5,7 +5,7 @@ import matplotlib as mpl
 import numpy as np
 import seaborn as sns
 
-from fruitfly import DataFrame
+from src.fruitfly import DataFrame
 
 eps = np.finfo(float).eps
 
@@ -853,3 +853,139 @@ def plot_overall_response(df, title="traces", vmin=-20, vmax=20, normalise=False
     plt.ylim([-.1, .2])
 
     plt.tight_layout()
+
+
+def plot_3_mbon_traces(df):
+    dan_types = [r"PPL1", r"PAM", r"PAM"]
+    dan_names = [u"\u03b31pedc", u"\u03b2'2m", u"\u03b2'2a"]
+    mbon_types = [r"MBON-GABA", r"MBON-Glu", r"MBON-Glu"]
+    mbon_names = [u"\u03b31pedc", u"\u03b2'2mp", u"\u03b35\u03b2'2a"]
+
+    cond = []
+    for group in [[dan_types[0], dan_names[0]], [mbon_types[0], mbon_names[0]],
+                  [dan_types[1], dan_names[1]], [mbon_types[1], mbon_names[1]],
+                  [dan_types[2], dan_names[2]], [mbon_types[2], mbon_names[2]]]:
+        c = np.all([df.index.get_level_values(t) == g for t, g in zip(["type", "name"], group)], axis=0)
+        cond.append(c)
+    data_i = df.iloc[np.any(cond, axis=0)]
+    data_avg = data_i.groupby(["type", "name"], axis=0).mean()  # type: pd.DataFrame
+    data_se = data_i.groupby(["type", "name"], axis=0).std() / np.sqrt(
+        data_i.groupby(["type", "name"], axis=0).count())  # type: pd.DataFrame
+    # print data_i
+
+    plt.figure("traces", figsize=(10, 5))
+    for i in xrange(3):
+        plt.subplot(231 + i)
+        t = np.linspace(0, 340, 1700, endpoint=False)
+        m = data_avg.T[mbon_types[i], mbon_names[i]].T.to_numpy(dtype=float)
+        e = data_se.T[mbon_types[i], mbon_names[i]].T.to_numpy(dtype=float)
+        mm = m.reshape((-1, 100))
+        me = e.reshape((-1, 100))
+        sm = mm[:, 44:49].mean(axis=1)
+        se = me[:, 44:49].mean(axis=1)
+        mmin = mm.min()
+        mmax = mm.max()
+        # sm = 20. * (sm - mmin) / (mmax - mmin) + 5.
+        # se = 20. * (se - mmin) / (mmax - mmin)
+        me = (me.sum(axis=1) - me[:, 44:49].sum(axis=1)) / 95.
+        # me = 20. * (me - mmin) / (mmax - mmin)
+        mm = (mm.sum(axis=1) - mm[:, 44:49].sum(axis=1)) / 35.
+        # mm = 20. * (mm - mmin) / (mmax - mmin) + 5.
+        plt.fill_between(t, m - e, m + e, color='grey', alpha=0.5)
+        plt.plot(t, m, 'k-')
+        plt.fill_between(t[40::200], mm[::2] - me[::2], mm[::2] + me[::2], color='blue', alpha=.2)
+        plt.plot(t[40::200], mm[::2], 'bo-')
+        plt.fill_between(t[140::200], mm[1::2] - me[1::2], mm[1::2] + me[1::2], color='red', alpha=.2)
+        plt.plot(t[140::200], mm[1::2], 'ro-')
+        plt.fill_between(t[40::200], sm[::2] - se[::2], sm[::2] + se[::2], color='blue', alpha=.1)
+        plt.plot(t[40::200], sm[::2], 'b^--')
+        plt.fill_between(t[140::200], sm[1::2] - se[1::2], sm[1::2] + se[1::2], color='red', alpha=.1)
+        plt.plot(t[140::200], sm[1::2], 'r^--')
+        # plt.errorbar(t[40::200], mm[::2], me[::2], c='blue', marker='o', linestyle='-')
+        # plt.errorbar(t[140::200], mm[1::2], me[1::2], c='red', marker='o', linestyle='-')
+        # plt.errorbar(t[40::200], sm[::2], se[::2], c='blue', marker='^', linestyle='--')
+        # plt.errorbar(t[140::200], sm[1::2], se[1::2], c='red', marker='^', linestyle='--')
+        plt.xticks(range(0, 340, 20), [""] * 17)
+        plt.xlim([0, 340])
+        plt.ylim([-1, 15])
+        plt.title("%s-%s" % ("MBON", mbon_names[i]))
+
+        plt.subplot(234 + i)
+        d = data_avg.T[dan_types[i], dan_names[i]].T.to_numpy(dtype=float)
+        e = data_se.T[dan_types[i], dan_names[i]].T.to_numpy(dtype=float)
+        md = d.reshape((-1, 100))
+        me = e.reshape((-1, 100))
+        sd = md[:, 44:49].mean(axis=1)
+        se = me[:, 44:49].mean(axis=1)
+        dmin = md.min()
+        dmax = md.max()
+        # sd = 15. * (sd - dmin) / (dmax - dmin) + 5.
+        # se = 15. * (se - dmin) / (dmax - dmin)
+        me = (me.sum(axis=1) - me[:, 44:49].sum(axis=1)) / 95.
+        # me = 15. * (me - md.min()) / (md.max() - md.min())
+        md = (md.sum(axis=1) - md[:, 44:49].sum(axis=1)) / 35.
+        # md = 15. * (md - md.min()) / (md.max() - md.min()) + 5.
+        plt.fill_between(t, d - e, d + e, color='grey', alpha=0.5)
+        plt.plot(t, d, 'k-')
+        plt.fill_between(t[40::200], md[::2] - me[::2], md[::2] + me[::2], color='blue', alpha=.2)
+        plt.plot(t[40::200], md[::2], 'bo-')
+        plt.fill_between(t[140::200], md[1::2] - me[1::2], md[1::2] + me[1::2], color='red', alpha=.2)
+        plt.plot(t[140::200], md[1::2], 'ro-')
+        plt.fill_between(t[40::200], sd[::2] - se[::2], sd[::2] + se[::2], color='blue', alpha=.1)
+        plt.plot(t[40::200], sd[::2], 'b^--')
+        plt.fill_between(t[140::200], sd[1::2] - se[1::2], sd[1::2] + se[1::2], color='red', alpha=.1)
+        plt.plot(t[140::200], sd[1::2], 'r^--')
+        plt.xticks(range(0, 340, 20), [s % (j // 2 + 1) for j, s in enumerate(["%d-", "%d+"] * 8 + ["%d-"])])
+        plt.xlim([0, 340])
+        plt.ylim([-1, 25])
+        plt.title("%s-%s" % (dan_types[i], dan_names[i]))
+    plt.tight_layout()
+
+
+def plot_3_mbon_shock(df):
+    dan_types = [r"PPL1", r"PAM", r"PAM"]
+    dan_names = [u"\u03b31pedc", u"\u03b2'2m", u"\u03b2'2a"]
+    mbon_types = [r"MBON-GABA", r"MBON-Glu", r"MBON-Glu"]
+    mbon_names = [u"\u03b31pedc", u"\u03b2'2mp", u"\u03b35\u03b2'2a"]
+
+    cond = []
+    for group in [[dan_types[0], dan_names[0]], [mbon_types[0], mbon_names[0]],
+                  [dan_types[1], dan_names[1]], [mbon_types[1], mbon_names[1]],
+                  [dan_types[2], dan_names[2]], [mbon_types[2], mbon_names[2]]]:
+        c = np.all([df.index.get_level_values(t) == g for t, g in zip(["type", "name"], group)], axis=0)
+        cond.append(c)
+    data_i = df.iloc[np.any(cond, axis=0)]
+
+    data_shock = data_i.T.groupby(["condition", "trial", "shock"], axis=0
+                                  ).mean().T.groupby(["type", "name", "id"], axis=0).mean()
+    print data_shock
+    data_shock = (data_shock.T.query('shock == True').reset_index(level='shock', drop=True) -
+                  data_shock.T.query('shock == False').reset_index(level='shock', drop=True)).T
+
+    plt.figure("shock-boxes", figsize=(15, 5))
+    for i in xrange(3):
+        plt.subplot(231 + i)
+
+        m = data_shock.T[mbon_types[i], mbon_names[i]].T.to_numpy(dtype=float)
+        m /= (max(m.max(), -m.min()) * 1.2)
+        plt.fill_between([-1, 9.5], [-1, -1], [1, 1], color='blue', alpha=.2)
+        plt.fill_between([9.5, 18], [-1, -1], [1, 1], color='red', alpha=.2)
+        plt.plot([-1, 18], [0, 0], 'k-', alpha=.2)
+        plt.boxplot(np.concatenate([m[:, 8:], m[:, :8]], axis=1), sym='k+',
+                    labels=['%d-' % (j + 1) for j in range(9)] + ['%d+' % (j + 1) for j in range(8)])
+        plt.ylim([-.4, 1])
+        plt.title("%s-%s" % ("MBON", mbon_names[i]))
+
+        plt.subplot(234 + i)
+
+        d = data_shock.T[dan_types[i], dan_names[i]].T.to_numpy(dtype=float)
+        d /= (max(d.max(), -d.min()) * 1.2)
+        plt.fill_between([-1, 9.5], [-1, -1], [1, 1], color='blue', alpha=.2)
+        plt.fill_between([9.5, 18], [-1, -1], [1, 1], color='red', alpha=.2)
+        plt.plot([-1, 18], [0, 0], 'k-', alpha=.2)
+        plt.boxplot(np.concatenate([d[:, 8:], d[:, :8]], axis=1), sym='k+',
+                    labels=['%d-' % (j + 1) for j in range(9)] + ['%d+' % (j + 1) for j in range(8)])
+        plt.ylim([-.2, 1])
+        plt.title("%s-%s" % (dan_types[i], dan_names[i]))
+    plt.tight_layout()
+
